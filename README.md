@@ -68,14 +68,15 @@ Two key functions handle training and evaluation:
 
 To make this more applicable to real-world use cases:
 
-  Replace the synthetic dataset with real multimodal datasets like CMU-MOSEI, MOSI, or SIMS
-  Add audio processing modules for a full tri-modal pipeline
-  Experiment with attention-based fusion methods or transformer-based architectures for all modalities
+  - Replace the synthetic dataset with real multimodal datasets like CMU-MOSEI, MOSI, or SIMS
+  - Add audio processing modules for a full tri-modal pipeline
+  - Experiment with attention-based fusion methods or transformer-based architectures for all modalities
 
 ## Acknowledgements
-  HuggingFace Transformer
-  PyTorch
-  Torchvision
+  
+  - HuggingFace Transformer
+  - PyTorch
+  - Torchvision
 
 
  
