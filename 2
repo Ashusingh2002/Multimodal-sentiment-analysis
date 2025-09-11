@@ -1,0 +1,105 @@
+<div class="header">
+  <span class="title">BASE</span>
+  <div class="nav">
+    <button mat-button>Screens</button>
+    <button mat-button>New Screen</button>
+    <button mat-button>Share</button>
+    <button mat-button>Save</button>
+    <button mat-button>Export</button>
+  </div>
+</div>
+
+<!-- Criteria Headers (always visible even if no fields) -->
+<div class="criteria-headers" style="display: flex; font-weight: bold; margin: 10px 0;">
+  <span style="width: 40px;"></span> <!-- optional checkbox column -->
+  <span style="width: 200px;">Field Name</span>
+  <span style="width: 150px;">Operator</span>
+  <span style="width: 150px;">Value</span>
+  <span style="width: 100px;">Matches</span>
+  <span style="width: 100px;">Universe</span>
+  <span style="width: 100px;">Actions</span>
+</div>
+
+<!-- Criteria Rows -->
+<div class="criteria-rows">
+  <div class="criteria-row" *ngFor="let field of fields; let i = index" style="display: flex; align-items: center; margin-bottom: 5px;">
+    <mat-checkbox [(ngModel)]="field.checked" style="width: 40px;"></mat-checkbox>
+
+    <mat-form-field appearance="outline" style="width: 200px;">
+      <input matInput [value]="field.name" readonly />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" style="width: 150px;">
+      <mat-select [(value)]="field.operator">
+        <mat-option *ngFor="let op of operators" [value]="op">{{ op }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" style="width: 150px;">
+      <mat-select [(value)]="field.value">
+        <mat-option *ngFor="let v of field.values" [value]="v">{{ v }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div style="width: 100px;">{{ field.matches }}</div>
+    <div style="width: 100px;">{{ field.universe }}</div>
+
+    <div style="width: 100px;">
+      <button mat-icon-button color="primary" (click)="showInfo(field)"><mat-icon>info</mat-icon></button>
+      <button mat-icon-button color="warn" (click)="removeField(i)"><mat-icon>delete</mat-icon></button>
+    </div>
+  </div>
+</div>
+
+<!-- Browse Criteria -->
+<div class="browse" style="margin-top: 10px;">
+  <div style="display: flex; gap: 10px; align-items: center;">
+
+    <!-- Search input styled like a button -->
+    <input
+      type="text"
+      placeholder="Search Criteria"
+      [(ngModel)]="searchText"
+      [matAutocomplete]="auto"
+      class="search-as-button"
+    />
+    <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addField($event.option.value)">
+      <mat-option *ngFor="let option of filteredOptions" [value]="option">
+        {{ option }}
+      </mat-option>
+    </mat-autocomplete>
+
+    <!-- Browse Criteria button -->
+    <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
+      Browse Criteria
+    </button>
+
+  </div>
+</div>
+
+
+
+<!-- Global Actions -->
+<div class="actions" style="margin-top: 10px;">
+<div style="display: flex; gap: 10px;">
+  <button mat-raised-button color="primary" (click)="updateResults()">Update Results</button>
+  <button mat-raised-button color="primary" (click)="setViewTemplate()">Set View Template</button>
+</div>
+
+</div>
+
+
+
+<!-- Popup Criteria Selector -->
+<ng-template #criteriaDialog>
+  <h2 mat-dialog-title>Select Criteria</h2>
+  <mat-dialog-content class="criteria-popup">
+    <div class="menu" *ngFor="let level of menuLevels; let i = index">
+      <mat-nav-list>
+        <mat-list-item *ngFor="let item of level" (click)="selectItem(item, i)">
+          {{ item.name }}
+        </mat-list-item>
+      </mat-nav-list>
+    </div>
+  </mat-dialog-content>
+</ng-template>
