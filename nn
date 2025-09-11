@@ -1,0 +1,320 @@
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+
+/**
+ * Angular 19 compatible Editor component (single-file, inline template).
+ * - I converted your messy HTML into valid Angular template syntax.
+ * - All functionality is preserved as method stubs that you can implement later.
+ * - Child components referenced (app-portfolio-dropdown, app-dropdown, app-date-picker,
+ *   app-swim-hist, app-dropdown, capp-swim-hist) are kept as-is and expected to exist
+ *   in your project. Replace or implement them if missing.
+ *
+ * Usage:
+ * 1) Put this file under a component folder, e.g. src/app/editor/editor.component.ts
+ * 2) Add EditorComponent to your AppModule (or a feature module) declarations.
+ * 3) Use <app-editor></app-editor> in a page template.
+ * 4) Paste your existing CSS into the component styles or global styles.
+ */
+
+@Component({
+  selector: 'app-editor',
+  template: `
+  <!-- TOP MENU BAR -->
+  <div style="width:100%" class="ui small secondary menu">
+    <div style="margin:7px;" class="item">
+      <i *ngIf="metaRec.isOpen" (click)="toggleOpen()" [ngClass]="metaRec.isOpen ? 'angle up icon' : 'angle down icon'"></i>
+      <span>{{ metaRec.screenName }}</span>
+    </div>
+
+    <a class="item"
+       [ngClass]="{ 'disabled': disableAddToFavorite() }"
+       (click)="onClickFavorite()"
+       [title]="isScreenFavorite() ? 'Remove from favorites' : 'Add to favorites'">
+      <i class="icon star" [ngClass]="{ 'outline': !isScreenFavorite() }"></i>
+      <span class="d-none d-wide-screen-inline-block">{{ isScreenFavorite() ? 'Remove from favorites' : 'Add to favorites' }}</span>
+    </a>
+
+    <a class="item" (click)="onClickReset()" title="Reset">
+      <i class="undo icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Reset</span>
+    </a>
+
+    <a class="item" title="Open" (click)="onClickOpen()">
+      <i class="folder open icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Open</span>
+    </a>
+
+    <a class="item" [title]="setTitle()" [ngClass]="{ 'disabled': metaRec.criteriaRecs.length === 0 }" (click)="onClickSave()">
+      <i class="save icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Save</span>
+    </a>
+
+    <a class="item" title="Save As" [ngClass]="{ 'disabled': metaRec.criteriaRecs.length === 0 }" (click)="onClickSaveAs('SaveAs')">
+      <i class="save icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Save As</span>
+    </a>
+
+    <a class="item" title="Batch Report">
+      <i class="copy outline icon"></i>
+      <span class="d-none d-wide-screen-inline-block" (click)="openBatchReport()">Batch Report</span>
+    </a>
+
+    <a class="item" [ngClass]="{ 'disabled': !canExport() }" title="Export to Excel" (click)="onClickExcel()">
+      <i class="file excel outline icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Export to Excel</span>
+    </a>
+
+    <a class="item" *ngIf="metaRec.selectedScreen?.screenId === -1" [ngClass]="{ 'disabled': metaRec.criteriaRecs.length === 0 }" title="Export to PDF" (click)="onClickPdf()">
+      <i class="file pdf outline icon"></i>
+      <span class="d-none d-wide-screen-inline-block">Export to PDF</span>
+    </a>
+
+    <div class="item">
+      <app-portfolio-dropdown [isEditor]="true" (changed)="onPortfolioSelect($event)"></app-portfolio-dropdown>
+    </div>
+  </div>
+  <!-- END: TOP MENU BAR -->
+
+  <!-- CRITERION SECTION -->
+  <div *ngIf="metaRec.isOpen" class="ui grid white-bg padded">
+    <!-- Header row -->
+    <div class="row editor-header-row">
+      <div class="four wide column">Field Name</div>
+      <div class="two wide column">Operator</div>
+      <div class="two wide column">Value</div>
+      <div class="one wide column" style="text-align:right">Matches</div>
+      <div class="one wide column" style="text-align:right">Universe</div>
+      <div class="two wide column"></div>
+    </div>
+
+    <!-- Criteria rows -->
+    <div *ngFor="let criteria of metaRec.criteriaRecs; let i = index" [ngClass]="{ 'row editor-row': true, 'disabled': !criteria.viewEntitled }">
+      <div class="four wide column">
+        <div class="ui checkbox">
+          <input type="checkbox" [(ngModel)]="criteria.visible" (change)="onVisibleChange($event, criteria, i)" />
+          <label>{{ criteria.name }}</label>
+        </div>
+        <div *ngIf="criteria.tags?.length">
+          <span *ngFor="let t of criteria.tags" class="ui horizontal circular label">{{ t }}</span>
+        </div>
+      </div>
+
+      <div class="two wide column">
+        <app-dropdown [selectedItem]="criteria.operator" (changed)="onOperatorChange(i, $event)" [dropdownItems]="criteriaRecOperators" [valueKey]="'id'" [displayKey]="'name'"></app-dropdown>
+      </div>
+
+      <div class="two wide column">
+        <!-- text input for free text operators -->
+        <ng-container *ngIf="criteria.operator?.isText || criteria.isText">
+          <div class="ui fluid input editor-input">
+            <input type="text" placeholder="Please enter value" [(ngModel)]="criteria.value" (keydown.enter)="onTextInputEnter($event, criteria)" />
+          </div>
+        </ng-container>
+
+        <!-- date picker -->
+        <div *ngIf="criteriaRecIsDate(criteria)" class="ui fluid input editor-input">
+          <input type="text" [id]="'crit'+criteria.id" [(ngModel)]="criteria.value" (keydown.enter)="onTextInputEnter($event, criteria)" />
+          <app-date-picker [target]="'crit'+criteria.id" (changed)="onClickDatepicker($event, criteria)"></app-date-picker>
+        </div>
+
+        <!-- numeric input + histogram toggle -->
+        <div *ngIf="criteria.isNumeric" class="ui fluid input editor-input" [ngClass]="{ 'left icon': criteria.isLoading }">
+          <input placeholder="Please enter value" [(ngModel)]="criteria.value" (click)="onClickHistogram($event, criteria)" (keydown.enter)="onTextInputEnter($event, criteria)" />
+          <i *ngIf="criteria.isLoading" class="circle notch spin icon"></i>
+        </div>
+
+        <!-- dropdown values (boolean / enumerations) -->
+        <ng-container *ngIf="(criteria.values?.length || criteriaRecDefaultValues.length) && (criteria.operator?.isDefinedBy || criteria.operator?.isShowOnly)">
+          <div *ngIf="criteria.isBoolean || (criteria.values && criteria.values.length)" class="ui fluid custom-dropdown dropdown selection">
+            <div class="text" (click)="onOpenChange(!criteria.dropdownOpen, criteria)">{{ criteria.value || 'Select value...' }} <i class="dropdown icon"></i></div>
+            <div class="menu" *ngIf="criteria.dropdownOpen">
+              <div *ngFor="let val of criteria.values; let vi = index" class="item">
+                <label class="ui checkbox">
+                  <input type="checkbox" [checked]="criteria.checkedValues?.some(cv => cv.value === val.value)" (change)="onSelectValueOption(val, criteria, vi)" />
+                  <span>{{ val.value }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+      </div>
+
+      <div class="one wide column" style="text-align:right">{{ criteria.matches || 0 }}</div>
+      <div class="one wide column" style="text-align:right">{{ criteria.universe || 0 }}</div>
+
+      <div class="two wide column right aligned">
+        <i (click)="onClickDelete($event, i)" class="trash icon" title="Delete"></i>
+      </div>
+
+      <!-- Histogram row (if numeric) -->
+      <div *ngIf="criteria.isValueNumeric && criteria.showHistogram" class="twelve wide column" style="height:150px;">
+        <!-- expecting capp-swim-hist or similar component to exist -->
+        <app-swim-hist [min]="criteria.histogram?.minValue" [max]="criteria.histogram?.maxValue" [showSelector]="true"
+                      [values]="criteria.histogram?.values" [selectedPoint]="criteria.value"
+                      (selectedPointChanged)="onSelectPointChange($event, criteria)"
+                      (matchesChanged)="onMatchesChange($event, criteria)" (valueAccepted)="onValueAccepted($event, criteria)">
+        </app-swim-hist>
+      </div>
+
+    </div>
+
+  </div>
+  <!-- END: CRITERION SECTION -->
+  `,
+  styles: []
+})
+export class EditorComponent {
+  // Simple model adapted from your original template
+  metaRec: any = {
+    isOpen: true,
+    screenName: 'Default Screen',
+    criteriaRecs: [
+      {
+        id: 1,
+        name: 'Sample Field',
+        visible: true,
+        viewEntitled: true,
+        operator: { id: 1, name: 'Equals', isText: true },
+        value: '',
+        values: [{ value: 'A' }, { value: 'B' }],
+        checkedValues: [],
+        isNumeric: false,
+        isValueNumeric: false,
+        showHistogram: false,
+        histogram: { minValue: 0, maxValue: 100, values: [] },
+        matches: 0,
+        universe: 0,
+        tags: ['Internal']
+      }
+    ],
+    selectedScreen: { screenId: -1 }
+  };
+
+  // sample operator list for dropdown
+  criteriaRecOperators = [
+    { id: 1, name: 'Equals', isText: true },
+    { id: 2, name: 'In', isDefinedBy: true },
+    { id: 83, name: 'Special' }
+  ];
+
+  // fallback values array
+  criteriaRecDefaultValues = [{ value: 'Yes' }, { value: 'No' }];
+
+  // ------ UI helper methods (stubs) ------
+  toggleOpen() {
+    this.metaRec.isOpen = !this.metaRec.isOpen;
+  }
+
+  disableAddToFavorite(): boolean {
+    // implement your real logic
+    return false;
+  }
+
+  onClickFavorite() {
+    console.log('favorite clicked');
+  }
+
+  isScreenFavorite(): boolean {
+    return false; // implement actual check
+  }
+
+  onClickReset() {
+    console.log('reset');
+  }
+
+  onClickOpen() {
+    console.log('open');
+  }
+
+  setTitle(): string {
+    return 'Save';
+  }
+
+  onClickSave() {
+    console.log('save');
+  }
+
+  onClickSaveAs(mode: string) {
+    console.log('save as', mode);
+  }
+
+  openBatchReport() {
+    console.log('open batch report');
+  }
+
+  canExport(): boolean {
+    return this.metaRec.criteriaRecs && this.metaRec.criteriaRecs.length > 0;
+  }
+
+  onClickExcel() {
+    console.log('export excel');
+  }
+
+  onClickPdf() {
+    console.log('export pdf');
+  }
+
+  onPortfolioSelect(ev: any) {
+    console.log('portfolio changed', ev);
+  }
+
+  // Criteria related handlers
+  onVisibleChange(event: any, criteria: any, index: number) {
+    console.log('visible changed', criteria, index);
+  }
+
+  onOperatorChange(index: number, event: any) {
+    console.log('operator changed', index, event);
+  }
+
+  onTextInputEnter(event: KeyboardEvent, criteria: any) {
+    console.log('text enter', criteria);
+  }
+
+  onClickDatepicker(event: any, criteria: any) {
+    console.log('date selected', event, criteria);
+  }
+
+  onClickHistogram(event: any, criteria: any) {
+    criteria.showHistogram = !criteria.showHistogram;
+  }
+
+  onSelectPointChange(evt: any, criteria: any) {
+    console.log('selected point changed', evt, criteria);
+  }
+
+  onMatchesChange(evt: any, criteria: any) {
+    criteria.matches = evt;
+  }
+
+  onValueAccepted(evt: any, criteria: any) {
+    criteria.value = evt;
+  }
+
+  onClickDelete(event: any, index: number) {
+    this.metaRec.criteriaRecs.splice(index, 1);
+  }
+
+  onChangeValueCombollox(event: any, criteria: any) {
+    console.log('combobox changed', event, criteria);
+  }
+
+  onOpenChange(isOpen: boolean, criteria: any) {
+    criteria.dropdownOpen = isOpen;
+  }
+
+  onSelectValueOption(valueRec: any, criteria: any, valueIndex: number) {
+    criteria.checkedValues = criteria.checkedValues || [];
+    const exists = criteria.checkedValues.find((c: any) => c.value === valueRec.value);
+    if (exists) {
+      criteria.checkedValues = criteria.checkedValues.filter((c: any) => c.value !== valueRec.value);
+    } else {
+      criteria.checkedValues.push(valueRec);
+    }
+  }
+
+  // small helper used in template
+  criteriaRecIsDate(criteria: any) {
+    return criteria.isDate || criteria.isDateTime;
+  }
+}
