@@ -1,0 +1,89 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ccc;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.nav button {
+  margin-left: 8px;
+}
+
+.criteria-rows {
+  margin: 16px 0;
+}
+
+.criteria-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.metrics {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  color: #555;
+}
+
+.row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.actions {
+  margin-top: 16px;
+}
+
+.browse {
+  margin-top: 12px;
+}
+
+.criteria-popup {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  background: #fafafa;
+  padding: 12px;
+}
+
+.menu {
+  min-width: 150px;
+  border-right: 1px solid #ddd;
+}
+
+.mat-list-item {
+  cursor: pointer;
+}
+
+.mat-list-item:hover {
+  background: #eee;
+}
+/* Make search input look like button */
+/* Wrapper to control height */
+/* Wrapper for search to match button height */
+/* Make search bar same height as button */
+/* Container for search bar */
+/* Make input look exactly like a button */
+.search-as-button {
+  height: 36px;                  /* same as button */
+  padding: 0 12px;               /* same horizontal padding */
+  border: 1px solid #1976d2;     /* match mat-stroked-button border */
+  border-radius: 4px;            /* same as button */
+  font-size: 14px;               /* same as button font */
+  background-color: white;        /* match button background */
+  cursor: text;
+  outline: none;
+}
+
+.search-as-button:focus {
+  border-color: #1565c0;         /* optional: focus effect like button hover */
+}
