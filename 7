@@ -1,86 +1,14 @@
-const criteriaData = [
-  {
-    name: 'Research',
-    children: [
-      {
-        name: 'ImpliedVol',
-        children: [
-          { 
-            name: '1M',
-            children: [
-              { name: 'Daily' },
-              { name: 'Weekly' },
-              { name: 'Monthly' },
-              { 
-                name: 'Statistics',
-                children: [
-                  { name: 'Mean' },
-                  { name: 'StdDev' }
-                ]
-              }
-            ]
-          },
-          { name: '3M' },
-          { name: '6M' },
-          { name: '12M' }
-        ]
-      }
-    ]
-  },
-  {
-    name: 'Data',
-    children: [
-      {
-        name: 'Liquidity',
-        children: [
-          { name: 'Bid' },
-          { name: 'Ask' },
-          { name: 'Spread' },
-          {
-            name: 'Volume',
-            children: [
-              { name: '1D' },
-              { name: '1W' },
-              { name: '1M' },
-            ]
-          }
-        ]
-      },
-      { name: 'OptionChain' }
-    ]
-  },
-  {
-    name: 'Analytics',
-    children: [
-      {
-        name: 'Greeks',
-        children: [
-          {
-            name: 'Delta',
-            children: [
-              { name: 'Call' },
-              { name: 'Put' },
-              { name: 'Adjusted' },
-            ]
-          },
-          { name: 'Gamma' },
-          { name: 'Theta' }
-        ]
-      }
-    ]
-  },
-  {
-    name: 'Portfolio',
-    children: [
-      { name: 'Positions' },
-      { name: 'Performance' }
-    ]
-  },
-  {
-    name: 'Market',
-    children: [
-      { name: 'Indices' },
-      { name: 'Commodities' }
-    ]
-  }
-];
+/* Optional: change checkbox color when checked */
+.mat-checkbox-checked.mat-accent .mat-checkbox-background,
+.mat-checkbox-checked.mat-primary .mat-checkbox-background {
+  background-color: #26c6da !important; /* custom checkbox color */
+}
+/* Default info button */
+.col-actions .mat-icon {
+  color: #757575; /* grey by default */
+}
+
+/* When row is checked */
+.info-checked .mat-icon {
+  color: #26c6da; /* custom color when checked */
+}
