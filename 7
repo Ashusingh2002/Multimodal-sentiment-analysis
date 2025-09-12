@@ -1,18 +1,6 @@
-.plus-box {
-  width: 24px;
-  height: 24px;
-  background-color: #1976d2; /* your theme color */
-  color: white;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px; /* square with slightly rounded corners */
-  cursor: pointer;
-}
-
-.browse-text {
-  font-weight: bold;
-  color: #1976d2; /* match theme */
-  cursor: pointer;
-}
+  <button mat-icon-button color="accent"
+          [matTooltip]="'Histogram for ' + field.name"
+          matTooltipPosition="above"
+          matTooltipShowDelay="500">
+    <mat-icon>histogram</mat-icon>
+  </button>
