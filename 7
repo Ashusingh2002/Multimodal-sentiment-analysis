@@ -1,18 +1,37 @@
-import { Component } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { LauncherDialogComponent } from './launcher-dialog/launcher-dialog.component';
-
-@Component({
-  selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
-})
-export class AppComponent {
-  constructor(private dialog: MatDialog) {}
-
-  openLauncher() {
-    this.dialog.open(LauncherDialogComponent, {
-      width: '400px'
-    });
+const criteriaData = [
+  {
+    name: 'Research',
+    children: [
+      { name: 'ImpliedVol', children: [{ name: '1M' }, { name: '3M' }, { name: '6M' }, { name: '12M' }] },
+      { name: 'VolSurface', children: [{ name: 'ATM' }, { name: '25Delta' }, { name: '10Delta' }, { name: 'Smile' }] }
+    ]
+  },
+  {
+    name: 'Data',
+    children: [
+      { name: 'Liquidity', children: [{ name: 'Bid' }, { name: 'Ask' }, { name: 'Spread' }, { name: 'Volume' }, { name: 'OpenInterest' }] },
+      { name: 'OptionChain', children: [{ name: 'Calls' }, { name: 'Puts' }, { name: 'StrikePrice' }, { name: 'Expiry' }] }
+    ]
+  },
+  {
+    name: 'Analytics',
+    children: [
+      { name: 'Greeks', children: [{ name: 'Delta' }, { name: 'Gamma' }, { name: 'Theta' }, { name: 'Vega' }, { name: 'Rho' }] },
+      { name: 'RiskMetrics', children: [{ name: 'VaR' }, { name: 'ExpectedShortfall' }] }
+    ]
+  },
+  {
+    name: 'Portfolio',
+    children: [
+      { name: 'Positions', children: [{ name: 'Equity' }, { name: 'Options' }, { name: 'Futures' }, { name: 'Bonds' }, { name: 'Cash' }] },
+      { name: 'Performance', children: [{ name: 'PnL' }, { name: 'Return' }] }
+    ]
+  },
+  {
+    name: 'Market',
+    children: [
+      { name: 'Indices', children: [{ name: 'NIFTY' }, { name: 'BANKNIFTY' }, { name: 'SENSEX' }, { name: 'NASDAQ' }, { name: 'DOWJONES' }, { name: 'FTSE' }] },
+      { name: 'Commodities', children: [{ name: 'Gold' }, { name: 'Silver' }, { name: 'CrudeOil' }] }
+    ]
   }
-}
+];
