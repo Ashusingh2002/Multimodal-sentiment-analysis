@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,16 +9,18 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { FormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatOptionModule } from '@angular/material/core';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import {  ViewChild, ElementRef } from '@angular/core';
+
 
 interface Field {
   name: string;
-  operator: string;
   value: string;
-  matches: number;
-  universe: number;
+  unique: number;
+  constant: number;
   values: string[];
   checked?: boolean;
 }
@@ -37,34 +40,39 @@ interface Field {
     MatListModule,
     MatCheckboxModule,
     MatAutocompleteModule,
-    MatOptionModule
+    MatOptionModule,
+    MatTooltipModule    // <-- Add this
   ],
   templateUrl: './base-editor.component.html',
   styleUrls: ['./base-editor.component.css']
 })
 export class BaseEditorComponent {
   dialog = inject(MatDialog);
+  data = inject(MAT_DIALOG_DATA);
+  hoveredItem: any = null;
 
-  operators = ['Equals', 'Not Equals', 'Greater Than', 'Less Than'];
+  @ViewChild('criteriaContainer') criteriaContainer!: ElementRef;
+  @ViewChild('criteriaRows', { read: ElementRef }) criteriaRows!: ElementRef;
 
-  fields: Field[] = []; // start empty
+  // --- Fields
+  fields: Field[] = [
+    { name: 'Exchange Region', value: 'AMERICAS', unique: 120, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false },
+    { name: 'ImpliedVol 1M', value: 'EUROPE', unique: 80, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false },
+    { name: 'Liquidity', value: 'ASIA', unique: 200, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false }
+  ];
 
   // --- Search
   searchText = '';
-
-  // Example criteria for search autocomplete
   allCriteria: string[] = [
     'Exchange Region',
     'ImpliedVol 1M',
     'ImpliedVol 3M',
     'ImpliedVol 6M',
     'ImpliedVol 12M',
-    'ImpliedIndexSpread 12M',
     'Liquidity',
     'OptionChain'
   ];
 
-  // Filtered options for autocomplete
   get filteredOptions(): string[] {
     if (!this.searchText) return [];
     return this.allCriteria.filter(c =>
@@ -75,40 +83,17 @@ export class BaseEditorComponent {
   // --- Popup state
   selectorOpen = false;
   menuLevels: any[][] = [];
-
+  browseDialogRef: any; // <-- store the currently open browse dialog
   rootCategories = [
-    {
-      name: 'Research',
-      children: [
-        {
-          name: 'ImpliedVol',
-          children: [
-            { name: '1M' },
-            { name: '3M' },
-            { name: '6M' },
-            { name: '12M' }
-          ]
-        },
-        {
-          name: 'ImpliedIndexSpread',
-          children: [{ name: '12M' }]
-        }
-      ]
-    },
-    {
-      name: 'Data',
-      children: [
-        { name: 'Liquidity' },
-        { name: 'OptionChain' }
-      ]
-    }
+    { name: 'Research', children: [{ name: 'ImpliedVol', children: [{ name: '1M' }, { name: '3M' }, { name: '6M' }, { name: '12M' }] }] },
+    { name: 'Data', children: [{ name: 'Liquidity' }, { name: 'OptionChain' }] }
   ];
 
   constructor() {
     this.menuLevels = [this.rootCategories];
   }
 
-  // --- Field actions
+  // --- Actions
   removeField(index: number) {
     this.fields.splice(index, 1);
   }
@@ -121,58 +106,85 @@ export class BaseEditorComponent {
     alert('Update Results clicked');
   }
 
-  setViewTemplate() {
-    alert('Set View Template clicked');
-  }
-
-  // --- Search actions
   addField(selectedName: string) {
     const exists = this.fields.find(f => f.name === selectedName);
-    if (exists) return; // avoid duplicates
+    if (exists) return;
 
     this.fields.push({
       name: selectedName,
-      operator: 'Equals',
       value: '',
-      matches: Math.floor(Math.random() * 100000),
-      universe: 151760,
+      unique: Math.floor(Math.random() * 200),
+      constant: 151760,
       values: ['AMERICAS', 'EUROPE', 'ASIA'],
       checked: false
     });
 
-    this.searchText = ''; // clear search bar
-  }
-
-  // --- Browse Criteria popup
-  openBrowse(templateRef: any) {
-    this.selectorOpen = !this.selectorOpen;
-    if (this.selectorOpen) {
-      this.menuLevels = [this.rootCategories];
-      this.dialog.open(templateRef, { width: '800px', height: '400px' });
-    } else {
-      this.dialog.closeAll();
+    this.searchText = '';
+      setTimeout(() => {
+    if (this.criteriaContainer) {
+      this.criteriaContainer.nativeElement.scrollTop = this.criteriaContainer.nativeElement.scrollHeight;
     }
+  });
   }
 
-  selectItem(item: any, level: number) {
-    if (item.children && item.children.length) {
-      this.menuLevels = this.menuLevels.slice(0, level + 1);
-      this.menuLevels.push(item.children);
-    } else {
-      const exists = this.fields.find(f => f.name === item.name);
-      if (exists) return; // avoid duplicates
+  // --- Browse Dialog
+// --- Browse Dialog
+openBrowse(templateRef: TemplateRef<any>) {
+  // Reset the menu to root every time
+   this.hoveredItem = null;
+  this.menuLevels = [this.rootCategories];
 
-      this.fields.push({
-        name: item.name,
-        operator: 'Equals',
-        value: '',
-        matches: Math.floor(Math.random() * 100000),
-        universe: 151760,
-        values: ['AMERICAS', 'EUROPE', 'ASIA'],
-        checked: false
-      });
-      this.dialog.closeAll();
-      this.selectorOpen = false;
+  this.selectorOpen = true;
+
+this.browseDialogRef = this.dialog.open(templateRef, {
+      width: '1000px',
+      height: '600px',
+      maxWidth: '90vw',
+      maxHeight: '90vh',
+  disableClose: false,
+  autoFocus: true
+});
+
+
+  this.browseDialogRef.afterClosed().subscribe(() => {
+    this.selectorOpen = false;
+    this.browseDialogRef = null;
+  });
+}
+
+
+
+
+
+selectItem(item: any, level: number) {
+  if (item.children && item.children.length) {
+    this.menuLevels = this.menuLevels.slice(0, level + 1);
+    this.menuLevels.push(item.children);
+
+    // auto-scroll last level into view
+    setTimeout(() => {
+      const levels = document.querySelectorAll('.menu-level');
+      const lastLevel = levels[levels.length - 1] as HTMLElement;
+      lastLevel?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+    });
+  } else {
+    this.addField(item.name);
+
+    if (this.browseDialogRef) {
+      this.browseDialogRef.close();
     }
   }
 }
+
+
+
+  closeBase() {
+  this.dialog.closeAll(); // close BaseEditor
+  if (this.data?.reopenParent) {
+    this.data.reopenParent(); // reopen Equity popup
+  }
+}
+
+
+}
+
