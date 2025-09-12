@@ -1,16 +1,18 @@
-/* Browse as text with + */
-.browse {
-  margin-top: 16px;
-  cursor: pointer;
-  color: #1976d2;
-  font-weight: 500;
-}
-
-.browse:hover {
-  text-decoration: underline;
-}
-
-.browse-text::before {
-  content: '+ ';
+.plus-box {
+  width: 24px;
+  height: 24px;
+  background-color: #1976d2; /* your theme color */
+  color: white;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px; /* square with slightly rounded corners */
+  cursor: pointer;
+}
+
+.browse-text {
+  font-weight: bold;
+  color: #1976d2; /* match theme */
+  cursor: pointer;
 }
