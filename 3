@@ -1,89 +1,127 @@
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #ccc;
-}
+<h2 mat-dialog-title>
+  Base Editor
+  <button mat-icon-button mat-dialog-close style="float:right;">
+    <mat-icon>close</mat-icon>
+  </button>
+</h2>
 
-.title {
-  font-size: 20px;
-  font-weight: bold;
-}
+<div class="main-editor-screen">
 
-.nav button {
-  margin-left: 8px;
-}
+  <!-- Scrollable Criteria Table -->
+  <div class="criteria-table-container" #criteriaContainer>
+    <div class="criteria-table">
+      <!-- Header -->
+      <div class="criteria-header">
+        <span class="col-checkbox"></span>
+        <span class="col-attr">Attribute</span>
+        <span class="col-value">Value</span>
+        <span class="col-unique">Unique</span>
+        <span class="col-const">Constant</span>
+        <span class="col-actions">Actions</span>
+      </div>
 
-.criteria-rows {
-  margin: 16px 0;
-}
+      <!-- Rows -->
+      <div class="criteria-rows">
+       <div class="criteria-row" *ngFor="let field of fields; let i = index">
+  <mat-checkbox [(ngModel)]="field.checked" class="col-checkbox"></mat-checkbox>
 
-.criteria-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
+  <!-- Attribute as plain text, NOT mat-form-field -->
+  <span class="col-attr">{{ field.name }}</span>
 
-.metrics {
-  display: flex;
-  flex-direction: column;
-  min-width: 120px;
-  color: #555;
-}
+  <!-- Value dropdown, smaller and left-aligned -->
+  <mat-form-field appearance="outline" class="col-value">
+    <mat-select [(value)]="field.value" class="value-select">
+      <mat-option *ngFor="let v of field.values" [value]="v" class="value-selected">{{ v }}</mat-option>
+    </mat-select>
+  </mat-form-field>
 
-.row-actions {
-  display: flex;
-  gap: 4px;
-}
+  <div class="col-unique">{{ field.unique }}</div>
+  <div class="col-const">{{ field.constant }}</div>
 
-.actions {
-  margin-top: 16px;
-}
+  <div class="col-actions">
+    <button mat-icon-button color="primary"
+            [matTooltip]="'Info about ' + field.name"
+            matTooltipPosition="above"
+            matTooltipShowDelay="500">
+      <mat-icon>info</mat-icon>
+    </button>
 
-.browse {
-  margin-top: 12px;
-}
+    <button mat-icon-button color="warn" (click)="removeField(i)">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</div>
 
-.criteria-popup {
-  display: flex;
-  flex-direction: row;
-  gap: 24px;
-  background: #fafafa;
-  padding: 12px;
-}
+      </div>
+    </div>
+  </div>
 
-.menu {
-  min-width: 150px;
-  border-right: 1px solid #ddd;
-}
+  <!-- Search + Browse -->
+  <div class="browse">
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <input
+        type="text"
+        placeholder="Search Attribute"
+        [(ngModel)]="searchText"
+        [matAutocomplete]="auto"
+        class="search-as-button"
+      />
+      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addField($event.option.value)">
+        <mat-option *ngFor="let option of filteredOptions" [value]="option">
+          {{ option }}
+        </mat-option>
+      </mat-autocomplete>
 
-.mat-list-item {
-  cursor: pointer;
-}
+      <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
+        Browse Attribute
+      </button>
+    </div>
+  </div>
 
-.mat-list-item:hover {
-  background: #eee;
-}
-/* Make search input look like button */
-/* Wrapper to control height */
-/* Wrapper for search to match button height */
-/* Make search bar same height as button */
-/* Container for search bar */
-/* Make input look exactly like a button */
-.search-as-button {
-  height: 36px;                  /* same as button */
-  padding: 0 12px;               /* same horizontal padding */
-  border: 1px solid #1976d2;     /* match mat-stroked-button border */
-  border-radius: 4px;            /* same as button */
-  font-size: 14px;               /* same as button font */
-  background-color: white;        /* match button background */
-  cursor: text;
-  outline: none;
-}
+  <!-- Global Actions -->
+  <div class="actions">
+    <button mat-raised-button color="primary" (click)="updateResults()">Update Results</button>
+  </div>
 
-.search-as-button:focus {
-  border-color: #1565c0;         /* optional: focus effect like button hover */
-}
+</div>
+
+<!-- Popup Criteria Selector -->
+<ng-template #criteriaDialog>
+  <h2 mat-dialog-title>
+    Select Attribute
+    <button mat-icon-button mat-dialog-close style="float:right;">
+      <mat-icon>close</mat-icon>
+    </button>
+  </h2>
+
+  <mat-dialog-content class="criteria-popup" style="display:flex; gap:20px;">
+
+    <!-- Left menu: horizontal levels -->
+    <div class="menu-container" style="display:flex; gap:10px; max-height:450px; overflow-x:auto; flex:7;">
+      <ng-container *ngFor="let level of menuLevels; let i = index">
+        <div class="menu-level" style="min-width:150px; border-right:1px solid #ccc;">
+          <div *ngFor="let item of level"
+               (click)="selectItem(item, i)"
+               (mouseenter)="hoveredItem = item"
+               style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #ddd; text-align:left;">
+            {{ item.name }}
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Right info panel -->
+    <div class="info-panel" style="flex:3; border-left:1px solid #ccc; padding-left:10px; max-height:450px; overflow-y:auto;">
+      <div *ngIf="hoveredItem">
+        <p><strong>Name:</strong> {{ hoveredItem.name || '-' }}</p>
+        <p><strong>Short Name:</strong> {{ hoveredItem.shortname || '-' }}</p>
+        <p><strong>Last Updated:</strong> {{ hoveredItem.lastUpdate || '-' }}</p>
+        <p><strong>Description:</strong> {{ hoveredItem.description || '-' }}</p>
+      </div>
+      <div *ngIf="!hoveredItem">
+        Hover over an item to see details
+      </div>
+    </div>
+
+  </mat-dialog-content>
+</ng-template>
