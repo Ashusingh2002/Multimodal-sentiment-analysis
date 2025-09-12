@@ -1,127 +1,160 @@
-<h2 mat-dialog-title>
-  Base Editor
-  <button mat-icon-button mat-dialog-close style="float:right;">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
+/* ---------------------- Main Editor ---------------------- */
+.main-editor-screen {
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  padding: 16px 24px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #fff;
+}
 
-<div class="main-editor-screen">
+/* ---------------------- Criteria Table ---------------------- */
+.criteria-table-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
 
-  <!-- Scrollable Criteria Table -->
-  <div class="criteria-table-container" #criteriaContainer>
-    <div class="criteria-table">
-      <!-- Header -->
-      <div class="criteria-header">
-        <span class="col-checkbox"></span>
-        <span class="col-attr">Attribute</span>
-        <span class="col-value">Value</span>
-        <span class="col-unique">Unique</span>
-        <span class="col-const">Constant</span>
-        <span class="col-actions">Actions</span>
-      </div>
+.criteria-table {
+  display: flex;
+  flex-direction: column;
+}
 
-      <!-- Rows -->
-      <div class="criteria-rows">
-       <div class="criteria-row" *ngFor="let field of fields; let i = index">
-  <mat-checkbox [(ngModel)]="field.checked" class="col-checkbox"></mat-checkbox>
+/* Header */
+.criteria-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 100px 120px 100px;
+  padding: 6px 0;
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+}
 
-  <!-- Attribute as plain text, NOT mat-form-field -->
-  <span class="col-attr">{{ field.name }}</span>
+.criteria-header span {
+  padding: 0 8px;
+}
 
-  <!-- Value dropdown, smaller and left-aligned -->
-  <mat-form-field appearance="outline" class="col-value">
-    <mat-select [(value)]="field.value" class="value-select">
-      <mat-option *ngFor="let v of field.values" [value]="v" class="value-selected">{{ v }}</mat-option>
-    </mat-select>
-  </mat-form-field>
+.criteria-header .col-attr {
+  text-align: left;
+}
 
-  <div class="col-unique">{{ field.unique }}</div>
-  <div class="col-const">{{ field.constant }}</div>
+.criteria-header .col-value,
+.criteria-header .col-unique,
+.criteria-header .col-const,
+.criteria-header .col-actions {
+  text-align: right;
+}
 
-  <div class="col-actions">
-    <button mat-icon-button color="primary"
-            [matTooltip]="'Info about ' + field.name"
-            matTooltipPosition="above"
-            matTooltipShowDelay="500">
-      <mat-icon>info</mat-icon>
-    </button>
+/* Rows */
+.criteria-rows {
+  display: flex;
+  flex-direction: column;
+}
 
-    <button mat-icon-button color="warn" (click)="removeField(i)">
-      <mat-icon>delete</mat-icon>
-    </button>
-  </div>
-</div>
+.criteria-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 100px 120px 100px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
 
-      </div>
-    </div>
-  </div>
+.criteria-row > * {
+  position: relative;
+  padding: 0 8px;
+}
 
-  <!-- Search + Browse -->
-  <div class="browse">
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <input
-        type="text"
-        placeholder="Search Attribute"
-        [(ngModel)]="searchText"
-        [matAutocomplete]="auto"
-        class="search-as-button"
-      />
-      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addField($event.option.value)">
-        <mat-option *ngFor="let option of filteredOptions" [value]="option">
-          {{ option }}
-        </mat-option>
-      </mat-autocomplete>
+/* Add | as pseudo element for column separators */
 
-      <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
-        Browse Attribute
-      </button>
-    </div>
-  </div>
+/* Add | as pseudo element for column separators, except before checkbox */
+/* Add | separator after all columns except first (checkbox) and last */
+/* Add | separator after all columns except first (checkbox) and last */
+.criteria-row > *:not(:first-child):not(:last-child)::after,
+.criteria-header span:not(:first-child):not(:last-child)::after {
+  content: '|';
+  position: absolute;
+  right: 0;
+  color: #ccc;
+}
 
-  <!-- Global Actions -->
-  <div class="actions">
-    <button mat-raised-button color="primary" (click)="updateResults()">Update Results</button>
-  </div>
+/* Remove pseudo-element from mat-checkbox explicitly */
+.criteria-row .col-checkbox::after {
+  content: none !important;
+}
 
-</div>
+/* Column alignment */
+.col-checkbox {
+  display: flex;
+  justify-content: center;
+}
 
-<!-- Popup Criteria Selector -->
-<ng-template #criteriaDialog>
-  <h2 mat-dialog-title>
-    Select Attribute
-    <button mat-icon-button mat-dialog-close style="float:right;">
-      <mat-icon>close</mat-icon>
-    </button>
-  </h2>
+.col-attr {
+  text-align: left;
+}
 
-  <mat-dialog-content class="criteria-popup" style="display:flex; gap:20px;">
 
-    <!-- Left menu: horizontal levels -->
-    <div class="menu-container" style="display:flex; gap:10px; max-height:450px; overflow-x:auto; flex:7;">
-      <ng-container *ngFor="let level of menuLevels; let i = index">
-        <div class="menu-level" style="min-width:150px; border-right:1px solid #ccc;">
-          <div *ngFor="let item of level"
-               (click)="selectItem(item, i)"
-               (mouseenter)="hoveredItem = item"
-               style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #ddd; text-align:left;">
-            {{ item.name }}
-          </div>
-        </div>
-      </ng-container>
-    </div>
 
-    <!-- Right info panel -->
-    <div class="info-panel" style="flex:3; border-left:1px solid #ccc; padding-left:10px; max-height:450px; overflow-y:auto;">
-      <div *ngIf="hoveredItem">
-        <p><strong>Name:</strong> {{ hoveredItem.name || '-' }}</p>
-        <p><strong>Short Name:</strong> {{ hoveredItem.shortname || '-' }}</p>
-        <p><strong>Last Updated:</strong> {{ hoveredItem.lastUpdate || '-' }}</p>
-        <p><strong>Description:</strong> {{ hoveredItem.description || '-' }}</p>
-      </div>
-      <div *ngIf="!hoveredItem">
-        Hover over an item to see details
-      </div>
-    </div>
+.col-value {
+  display: flex;
+  align-items: center; 
+/* center mat-select vertically */
+}
 
-  </mat-dialog-content>
-</ng-template>
+.col-value mat-form-field {
+  width: 80%;                /* smaller than cell */
+  height:80%;              /* inherit row height */
+  margin: 0;
+  font-size: 14px;    
+}
+
+.col-value mat-select {
+  height: 80%;              /* fill mat-form-field height */
+  line-height: normal;
+  font-size: 13px;           /* smaller font */
+}
+
+.col-unique,
+.col-const,
+.col-actions {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* Action buttons */
+.col-actions button {
+  margin-left: 4px;
+}
+
+/* Browse + Search + Actions stay fixed below table */
+.browse {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.actions {
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.search-as-button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  line-height: 36px;
+  box-sizing: border-box;
+  width: 180px;
+}
+
+.search-as-button:focus {
+  border-color: #1565c0;
+}
