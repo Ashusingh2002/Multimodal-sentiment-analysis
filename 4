@@ -1,0 +1,54 @@
+import { Component, inject, ViewChild, TemplateRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatListModule } from '@angular/material/list';
+import { MatIconModule } from '@angular/material/icon';
+import { BaseEditorComponent } from '../base-editor/base-editor.component';
+
+@Component({
+  selector: 'app-launcher-dialog',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatButtonModule,
+    MatDialogModule,
+    MatListModule,
+    MatIconModule
+  ],
+  templateUrl: './launcher-dialog.component.html',
+  styleUrls: ['./launcher-dialog.component.css']
+})
+export class LauncherDialogComponent {
+  dialog = inject(MatDialog);
+  @ViewChild('mainPopup') mainPopup!: TemplateRef<any>;
+
+  openMainPopup() {
+    this.dialog.open(this.mainPopup, { width: '700px', height: '400px' });
+  }
+
+  openBase() {
+    // Close only the main popup template
+    const openDialogs = this.dialog.openDialogs;
+    openDialogs.forEach(d => {
+      if (d.componentInstance === undefined) {
+        // it's your mainPopup template
+        d.close();
+      }
+    });
+
+    const ref = this.dialog.open(BaseEditorComponent, {
+      width: '1200px',
+      height: '700px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+      data: {
+        // Reopen Equity Research popup when BaseEditor closes
+        reopenParent: () => {
+          // Open Equity Research popup (same as mainPopup template)
+          this.dialog.open(this.mainPopup, { width: '700px', height: '400px' });
+        }
+      }
+    });
+  }
+}
