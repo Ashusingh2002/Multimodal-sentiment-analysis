@@ -1,4 +1,16 @@
-.custom-checkbox.mat-mdc-checkbox-checked .mdc-checkbox__background {
-  background-color: #26c6da !important;  /* custom cyan */
-  border-color: #26c6da !important;
+/* Browse as text with + */
+.browse {
+  margin-top: 16px;
+  cursor: pointer;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.browse:hover {
+  text-decoration: underline;
+}
+
+.browse-text::before {
+  content: '+ ';
+  font-weight: bold;
 }
