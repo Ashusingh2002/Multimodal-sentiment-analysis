@@ -1,5 +1,211 @@
-.mat-mdc-dialog-surface {
-  border-radius: 0 !important;
-  border: 1px solid #ccc;   /* optional border */
-  box-shadow: none;         /* remove Material shadow */
+{
+  "BCEFVALS: SHORTINT_UR": {
+    "basket_region": "EU",
+    "basket_type": "Factor",
+    "basket_name": "BCEFVALS",
+    "factor_description": "Utilization Rate",
+    "factor_name": "Short Interest",
+    "factor_group_name": "Sentiment",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "BCEFVALS: SHORTINT_UR"
+  },
+  "BCEFVALS: EPS_SURP_FY0": {
+    "basket_region": "US",
+    "basket_type": "Factor",
+    "basket_name": "BCEFVALS",
+    "factor_description": "FY0 EPS surprise",
+    "factor_name": "Analyst Sentiment",
+    "factor_group_name": "Sentiment",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "BCEFVALS: EPS_SURP_FY0"
+  },
+  "BCEFVALS: DIV_YIELD": {
+    "basket_region": "ASIA",
+    "basket_type": "Factor",
+    "basket_name": "BCEFVALS",
+    "factor_description": "Dividend Yield",
+    "factor_name": "Yield",
+    "factor_group_name": "Fundamentals",
+    "is_raw_available": true,
+    "is_std_available": false,
+    "object_id": "BCEFVALS: DIV_YIELD"
+  },
+  "EQFACTORS: PE_RATIO": {
+    "basket_region": "EU",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "Price to Earnings Ratio",
+    "factor_name": "Valuation",
+    "factor_group_name": "Fundamentals",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: PE_RATIO"
+  },
+  "EQFACTORS: PB_RATIO": {
+    "basket_region": "US",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "Price to Book Ratio",
+    "factor_name": "Valuation",
+    "factor_group_name": "Fundamentals",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: PB_RATIO"
+  },
+  "EQFACTORS: ROE": {
+    "basket_region": "ASIA",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "Return on Equity",
+    "factor_name": "Profitability",
+    "factor_group_name": "Fundamentals",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: ROE"
+  },
+  "EQFACTORS: ROA": {
+    "basket_region": "EU",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "Return on Assets",
+    "factor_name": "Profitability",
+    "factor_group_name": "Fundamentals",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: ROA"
+  },
+  "EQFACTORS: VOLATILITY_30D": {
+    "basket_region": "US",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "30D Volatility",
+    "factor_name": "Risk",
+    "factor_group_name": "Volatility",
+    "is_raw_available": true,
+    "is_std_available": false,
+    "object_id": "EQFACTORS: VOLATILITY_30D"
+  },
+  "EQFACTORS: VOLATILITY_90D": {
+    "basket_region": "ASIA",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "90D Volatility",
+    "factor_name": "Risk",
+    "factor_group_name": "Volatility",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: VOLATILITY_90D"
+  },
+  "EQFACTORS: MOMENTUM_6M": {
+    "basket_region": "EU",
+    "basket_type": "Factor",
+    "basket_name": "EQFACTORS",
+    "factor_description": "6M Momentum",
+    "factor_name": "Momentum",
+    "factor_group_name": "Price Trends",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "EQFACTORS: MOMENTUM_6M"
+  },
+  "MACROVALS: GDP_GROWTH": {
+    "basket_region": "US",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "GDP Growth",
+    "factor_name": "Economy",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "MACROVALS: GDP_GROWTH"
+  },
+  "MACROVALS: CPI_INFLATION": {
+    "basket_region": "EU",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Consumer Price Inflation",
+    "factor_name": "Economy",
+    "factor_group_name": "Macro",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "MACROVALS: CPI_INFLATION"
+  },
+  "MACROVALS: UNEMPLOYMENT": {
+    "basket_region": "ASIA",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Unemployment Rate",
+    "factor_name": "Economy",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": false,
+    "object_id": "MACROVALS: UNEMPLOYMENT"
+  },
+  "MACROVALS: INTEREST_RATE": {
+    "basket_region": "US",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Benchmark Interest Rate",
+    "factor_name": "Monetary Policy",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "MACROVALS: INTEREST_RATE"
+  },
+  "MACROVALS: TRADE_BALANCE": {
+    "basket_region": "EU",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Trade Balance",
+    "factor_name": "Economy",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "MACROVALS: TRADE_BALANCE"
+  },
+  "MACROVALS: FISCAL_DEFICIT": {
+    "basket_region": "ASIA",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Fiscal Deficit",
+    "factor_name": "Government",
+    "factor_group_name": "Macro",
+    "is_raw_available": false,
+    "is_std_available": true,
+    "object_id": "MACROVALS: FISCAL_DEFICIT"
+  },
+  "MACROVALS: OIL_PRICE": {
+    "basket_region": "US",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Crude Oil Price",
+    "factor_name": "Commodities",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "MACROVALS: OIL_PRICE"
+  },
+  "MACROVALS: GOLD_PRICE": {
+    "basket_region": "EU",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Gold Spot Price",
+    "factor_name": "Commodities",
+    "factor_group_name": "Macro",
+    "is_raw_available": true,
+    "is_std_available": false,
+    "object_id": "MACROVALS: GOLD_PRICE"
+  },
+  "MACROVALS: CARBON_EMISSIONS": {
+    "basket_region": "ASIA",
+    "basket_type": "Macro",
+    "basket_name": "MACROVALS",
+    "factor_description": "Carbon Emissions",
+    "factor_name": "Environment",
+    "factor_group_name": "Sustainability",
+    "is_raw_available": true,
+    "is_std_available": true,
+    "object_id": "MACROVALS: CARBON_EMISSIONS"
+  }
 }
