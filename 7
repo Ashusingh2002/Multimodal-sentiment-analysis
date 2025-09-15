@@ -1,10 +1,39 @@
-minimized = false;
+minimizeDialog() {
+  this.dialog.closeAll(); // closes the dialog completely
 
-toggleMinimize() {
-  this.minimized = !this.minimized;
+  // Optionally: reopen a minimized floating button at bottom/right
+  const minimizedBtn = document.createElement('button');
+  minimizedBtn.innerText = 'Open Base Editor';
+  minimizedBtn.classList.add('minimized-btn');
+  minimizedBtn.onclick = () => {
+    minimizedBtn.remove();
+    this.dialog.open(BaseEditorComponent, {
+      width: '80vw',
+      height: '80vh',
+      data: this.data // keep context
+    });
+  };
 
-  const container = document.querySelector('.mat-mdc-dialog-container') as HTMLElement;
-  if (container) {
-    container.style.display = this.minimized ? 'none' : 'block';
-  }
+  document.body.appendChild(minimizedBtn);
+}
+<h2 mat-dialog-title class="heading">
+  Base Editor
+  <button mat-icon-button (click)="minimizeDialog()" style="float:right;">
+    <mat-icon>minimize</mat-icon>
+  </button>
+  <button mat-icon-button mat-dialog-close style="float:right;">
+    <mat-icon>close</mat-icon>
+  </button>
+</h2>
+.minimized-btn {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 2000;
 }
