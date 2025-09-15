@@ -38,3 +38,35 @@ filterOptions(field: Field) {
     .filter(opt => opt && !field.value.includes(opt))
     .filter(opt => opt.toLowerCase().includes(search));
 }
+
+
+addField(selectedName: string) {
+  const exists = this.fields.find(f => f.name === selectedName);
+  if (exists) return;
+
+  const jsonKey = this.fieldToJsonKey[selectedName];  // ✅ map properly
+  this.fields.push({
+    name: selectedName,
+    value: [],
+    unique: Math.floor(Math.random() * 200),
+    constant: 151760,
+    values: jsonKey ? this.getUniqueValues(jsonKey) : [], // ✅ load values
+    checked: false,
+    searchText: ''
+  });
+
+  setTimeout(() => {
+    if (this.criteriaContainer) {
+      this.criteriaContainer.nativeElement.scrollTop = this.criteriaContainer.nativeElement.scrollHeight;
+    }
+  });
+}
+fieldToJsonKey: Record<string, string | null> = {
+  'Basket_Name': 'basket_name',
+  'Factor_Description': 'factor_description',
+  'Factor_name': 'factor_name',
+  'Factor_group_name': 'factor_group_name',
+  'Basket_Region': 'basket_region',
+  'Measure': null // special case
+};
+
