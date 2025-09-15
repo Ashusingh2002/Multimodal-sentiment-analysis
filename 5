@@ -1,15 +1,21 @@
-<h2 mat-dialog-title>
-  Select Series
-  <button mat-icon-button mat-dialog-close class="close-btn">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
+isMandatory(fieldName: string): boolean {
+  return this.fields.some(f => f.name === fieldName && f.mandatory);
+}
+<div *ngFor="let item of menuLevels[0]"
+     (click)="!isMandatory(item.name) && selectItem(item)"
+     (mouseenter)="hoveredItem = item"
+     [class.disabled]="isMandatory(item.name)"
+     class="menu-item">
+  {{ item.name }}
+  <span *ngIf="isMandatory(item.name)" class="mandatory-asterisk">*</span>
+</div>
+.mandatory-asterisk {
+  color: red;
+  margin-left: 2px;
+  font-weight: bold;
+}
 
-<mat-dialog-content>
-  <mat-nav-list>
-    <mat-list-item (click)="openBase()">
-      Equity Research Base
-    </mat-list-item>
-  </mat-nav-list>
-</mat-dialog-content>
-
+.menu-item.disabled {
+  pointer-events: none; /* disable click */
+  opacity: 0.6;         /* greyed out */
+}
