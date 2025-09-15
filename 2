@@ -1,160 +1,456 @@
-/* ---------------------- Main Editor ---------------------- */
-.main-editor-screen {
-  display: flex;
-  flex-direction: column;
-  max-height: 80vh;
-  padding: 16px 24px;
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  background: #fff;
+import { Component, inject, TemplateRef, ViewChild, ElementRef, QueryList, ViewChildren } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
+import { MatOptionModule } from '@angular/material/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { COMMA, ENTER } from '@angular/cdk/keycodes';
+import { MatChipInputEvent, MatChipGrid, MatChipsModule } from '@angular/material/chips';
+import { MatTableModule } from '@angular/material/table';
+import { MatTable } from '@angular/material/table';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+
+import rawData from '../../assets/data.json';
+
+interface Field {
+  name: string;
+  value: string[];
+  unique: number;
+  constant: number;
+  values: string[];
+  checked?: boolean;
+  searchText: string;
+  mandatory?: boolean;
+  trigger?: MatAutocompleteTrigger;
 }
 
-/* ---------------------- Criteria Table ---------------------- */
-.criteria-table-container {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 16px;
+@Component({
+  selector: 'app-base-editor',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatIconModule,
+    MatListModule,
+    MatCheckboxModule,
+    MatAutocompleteModule,
+    MatOptionModule,
+    MatTooltipModule,
+    MatChipsModule,
+    MatTableModule,
+    MatSnackBarModule
+  ],
+  templateUrl: './base-editor.component.html',
+  styleUrls: ['./base-editor.component.css']
+})
+export class BaseEditorComponent {
+  dialog = inject(MatDialog);
+  data = inject(MAT_DIALOG_DATA);
+
+  hoveredItem: any = null;
+  separatorKeysCodes: number[] = [ENTER, COMMA];
+  @ViewChild('criteriaContainer') criteriaContainer!: ElementRef;
+  @ViewChild('criteriaRows', { read: ElementRef }) criteriaRows!: ElementRef;
+  @ViewChildren('chipList') chipLists!: QueryList<MatChipGrid>;
+@ViewChild('resultsTable') table!: MatTable<any>;
+
+  // --- Data from JSON
+  private entries: any[] = Object.values(rawData);
+
+  // --- Fields
+  fields: Field[] = [
+    {
+      name: 'Basket_Name',
+      value: [],
+      unique: 50,
+      constant: 151760,
+      values: this.getUniqueValues('basket_name'),
+      checked: true,
+      searchText: '',
+      mandatory: true
+    },
+    {
+      name: 'Factor_Description',
+      value: [],
+      unique: 100,
+      constant: 151760,
+      values: this.getUniqueValues('factor_description'),
+      checked: true,
+      searchText: '',
+      mandatory: true
+    },
+    {
+      name: 'Measure',
+      value: [],
+      unique: 200,
+      constant: 151760,
+      values: ['Raw', 'Std'], // treat object_id as measure
+      checked: true,
+      searchText: '',
+      mandatory: true
+    }
+  ];
+
+  // --- Menu
+  selectorOpen = false;
+  menuLevels: any[][] = [];
+  browseDialogRef: any;
+
+  rootCategories = [
+    { name: 'Basket_Name' },
+    { name: 'Basket_Region' },
+    { name: 'Factor_Description' },
+    { name: 'Factor_name' },
+    { name: 'Factor_group_name' },
+    { name: 'Measure' }
+  ];
+
+  constructor(private snackBar: MatSnackBar) {
+    this.menuLevels = [this.rootCategories];
+  }
+
+  // --- Helpers to get unique values
+  private getUniqueValues(field: string): string[] {
+    return [...new Set(this.entries.map((e: any) => e[field]))].filter(v => !!v);
+  }
+
+  // --- Actions
+  removeField(index: number) {
+    this.fields.splice(index, 1);
+  }
+
+  showInfo(field: Field) {
+    alert(`Info about ${field.name}`);
+  }
+
+  addField(selectedName: string) {
+    const exists = this.fields.find(f => f.name === selectedName);
+    if (exists) return;
+
+    this.fields.push({
+      name: selectedName,
+      value: [],
+      unique: Math.floor(Math.random() * 200),
+      constant: 151760,
+      values: this.getUniqueValues(selectedName.toLowerCase()), // ✅ get values from JSON
+      checked: false,
+      searchText: ''
+    });
+
+    setTimeout(() => {
+      if (this.criteriaContainer) {
+        this.criteriaContainer.nativeElement.scrollTop = this.criteriaContainer.nativeElement.scrollHeight;
+      }
+    });
+  }
+
+  addValue(field: Field, value: string) {
+    if (value && !field.value.includes(value)) {
+      field.value.push(value);
+      field.searchText = '';
+    }
+  }
+
+  addFromInput(event: MatChipInputEvent, field: Field): void {
+    const value = (event.value || '').trim();
+    if (value && field.values.includes(value) && !field.value.includes(value)) {
+      field.value.push(value);
+    }
+    event.chipInput?.clear();
+    field.searchText = '';
+  }
+
+  removeValue(field: Field, value: string): void {
+    const index = field.value.indexOf(value);
+    if (index >= 0) {
+      field.value.splice(index, 1);
+    }
+  }
+
+  openBrowse(templateRef: TemplateRef<any>) {
+    this.hoveredItem = null;
+    this.menuLevels = [this.rootCategories];
+    this.selectorOpen = true;
+
+    this.browseDialogRef = this.dialog.open(templateRef, {
+      width: '40vw',
+      height: '50vh',
+      maxWidth: '70vw',
+      maxHeight: '70vh',
+      disableClose: false,
+      autoFocus: true
+    });
+
+    this.browseDialogRef.afterClosed().subscribe(() => {
+      this.selectorOpen = false;
+      this.browseDialogRef = null;
+    });
+  }
+
+  filterOptions(field: Field) {
+    const search = (field.searchText || '').toLowerCase();
+    return field.values
+      .filter(opt => !field.value.includes(opt))
+      .filter(opt => opt.toLowerCase().includes(search));
+  }
+
+  addTrigger(field: Field, trigger: MatAutocompleteTrigger) {
+    field.trigger = trigger;
+  }
+
+  toggleAutocomplete(field: Field, input: HTMLInputElement) {
+    if (!field.trigger) return;
+    if (input.value === '') {
+      if (field.trigger.panelOpen) {
+        field.trigger.closePanel();
+      } else {
+        field.trigger.openPanel();
+      }
+    }
+  }
+
+  selectItem(item: any) {
+    this.addField(item.name);
+    if (this.browseDialogRef) {
+      this.browseDialogRef.close();
+    }
+  }
+
+  closeBase() {
+    this.dialog.closeAll();
+    if (this.data?.reopenParent) {
+      this.data.reopenParent();
+    }
+  }
+
+onCheckboxChange(field: Field, event: any) {
+  if (field.mandatory && !event.checked) {
+    // prevent unchecking
+    field.checked = true;   // force it to remain checked
+    event.source.checked = true;
+
+            this.snackBar.open(`${field.name} is mandatory and cannot be unchecked.`, 'Close', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+  } else {
+    field.checked = event.checked;
+  }
 }
 
-.criteria-table {
-  display: flex;
-  flex-direction: column;
+
+// --- For results table
+results: any[] = [];
+
+selectAllChecked = false;
+// Map UI field names → JSON keys
+fieldToJsonKey: Record<string, string | null> = {
+  'Basket_Name': 'basket_name',           // UI field Basket_Name maps to JSON basket_name
+  'Factor_Description': 'factor_description', // UI field Factor_Description maps to JSON factor_description
+  'Measure': null                         // special case: Measure is derived from is_raw_available / is_std_available
+};
+
+
+// --- Update Results function
+// updateResults() {
+//   const fieldToJsonKey: Record<string, string | null> = {
+//     'Basket_Name': 'basket_name',
+//     'Factor_Description': 'factor_description',
+//     'Measure': null
+//   };
+
+//   // Build filters for non-measure fields
+//   const filters: Record<string, string[]> = {};
+//   this.fields.forEach(f => {
+//     const jsonKey = fieldToJsonKey[f.name];
+//     if (jsonKey && f.value.length > 0) {
+//       filters[jsonKey] = f.value;
+//     }
+//   });
+
+//   // Step 1: Filter JSON using all selected dropdowns
+//   const desiredObjects = this.entries.filter(e =>
+//     Object.keys(filters).every(jsonKey => filters[jsonKey].includes(e[jsonKey]))
+//   );
+
+//   // Step 2: Explode measures into separate rows
+//   const tableRows: any[] = [];
+//   desiredObjects.forEach(e => {
+//     if (e.is_raw_available) {
+//       tableRows.push({
+//         ...e,
+//         measure: 'Raw',
+//         object_id: `${e.object_id}:Raw`
+//       });
+//     }
+//     if (e.is_std_available) {
+//       tableRows.push({
+//         ...e,
+//         measure: 'Std',
+//         object_id: `${e.object_id}:Std`
+//       });
+//     }
+//   });
+
+//   // Step 3: Save result
+//   this.results = tableRows;
+//   this.selectedRows.clear();
+//   this.selectAllChecked = false;
+
+//   if (this.results.length === 0) {
+//     this.snackBar.open('No matching entries found', 'Close', {
+//       duration: 3000,
+//       verticalPosition: 'top'
+//     });
+//   }
+
+//   console.log('Filtered rows:', this.results);
+// }
+
+
+updateResults() {
+  // Map UI field names → JSON keys (except Measure)
+const fieldToJsonKey: Record<string, string | null> = {
+  'Basket_Name': 'basket_name',
+  'Factor_Description': 'factor_description',
+  'Factor_name': 'factor_name',
+  'Factor_group_name': 'factor_group_name',
+  'Basket_Region': 'basket_region',
+  'Measure': null   // handled separately
+};
+
+
+  const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
+  const missing = mandatoryFields.filter(f => {
+    const field = this.fields.find(x => x.name === f);
+    return !field || field.value.length === 0;
+  });
+
+  if (missing.length > 0) {
+    this.snackBar.open(
+      'Please select at least one value for all mandatory fields',
+      'Close',
+      { duration: 3000, verticalPosition: 'top' }
+    );
+    return; // stop execution
+  }
+  // Build filters
+  const filters: Record<string, string[]> = {};
+  this.fields.forEach(f => {
+    const jsonKey = fieldToJsonKey[f.name];
+    if (jsonKey && f.value.length > 0) {
+      filters[jsonKey] = f.value;
+    }
+  });
+
+  // Filter entries by JSON keys (Basket_Name, Factor_Description)
+  const filtered = this.entries.filter(e =>
+    Object.keys(filters).every(jsonKey =>
+      filters[jsonKey].includes(e[jsonKey])
+    )
+  );
+
+  // Handle Measure separately
+  const measureField = this.fields.find(f => f.name.toLowerCase() === 'measure');
+  const selectedMeasures = measureField?.value ?? [];
+
+  const tableRows: any[] = [];
+  filtered.forEach(e => {
+    selectedMeasures.forEach(measure => {
+      if ((measure.toLowerCase() === 'raw' && e.is_raw_available) ||
+          (measure.toLowerCase() === 'std' && e.is_std_available)) {
+        tableRows.push({
+          ...e,
+          measure,
+          object_id: e.object_id + ':' + measure
+        });
+      }
+    });
+  });
+
+  this.results = tableRows;
+  this.selectedRows.clear();
+  this.selectAllChecked = false;
+
+
+  if (this.results.length === 0) {
+    this.snackBar.open('No matching entries found', 'Close', {
+      duration: 3000,
+      verticalPosition: 'top'
+    });
+  }
+
+
+  console.log('Filtered results:', this.results);
 }
 
-/* Header */
-.criteria-header {
-  display: grid;
-  grid-template-columns: 40px 1fr 1fr 100px 120px 100px;
-  padding: 6px 0;
-  font-weight: bold;
-  border-bottom: 1px solid #ccc;
+
+selectedRows = new Set<string>();
+
+// Toggle individual row
+toggleRowSelection(objectId: string, checked: boolean) {
+  if (checked) this.selectedRows.add(objectId);
+  else this.selectedRows.delete(objectId);
 }
 
-.criteria-header span {
-  padding: 0 8px;
+// Check if all rows are selected
+allSelected(): boolean {
+  return this.results.length > 0 && this.selectedRows.size === this.results.length;
+}
+// Check if some but not all rows are selected
+someSelected(): boolean {
+  return this.selectedRows.size > 0 && this.selectedRows.size < this.results.length;
 }
 
-.criteria-header .col-attr {
-  text-align: left;
+// Toggle select all
+toggleSelectAll(checked: boolean) {
+  if (checked) {
+    this.results.forEach(r => this.selectedRows.add(r.object_id));
+  } else {
+    this.selectedRows.clear();
+  }
 }
 
-.criteria-header .col-value,
-.criteria-header .col-unique,
-.criteria-header .col-const,
-.criteria-header .col-actions {
-  text-align: right;
+// --- Plot button click
+plotSelected() {
+  console.log('Plotting rows:', Array.from(this.selectedRows));
+
 }
 
-/* Rows */
-.criteria-rows {
-  display: flex;
-  flex-direction: column;
+// Returns dynamic column list for table
+get displayedColumns(): string[] {
+  return ['select', 'ticker', ...this.fields.map(f => this.getColumnKey(f)), 'measure'];
 }
 
-.criteria-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 1fr 100px 120px 100px;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
+getRowValue(row: any, fieldName: string) {
+  return row[fieldName.toLowerCase()] || '-';
 }
 
-.criteria-row > * {
-  position: relative;
-  padding: 0 8px;
+getColumnKey(f: Field) {
+  return f.name.replace(/\s+/g, '_');
 }
-
-/* Add | as pseudo element for column separators */
-
-/* Add | as pseudo element for column separators, except before checkbox */
-/* Add | separator after all columns except first (checkbox) and last */
-/* Add | separator after all columns except first (checkbox) and last */
-.criteria-row > *:not(:first-child):not(:last-child)::after,
-.criteria-header span:not(:first-child):not(:last-child)::after {
-  content: '|';
-  position: absolute;
-  right: 0;
-  color: #ccc;
-}
-
-/* Remove pseudo-element from mat-checkbox explicitly */
-.criteria-row .col-checkbox::after {
-  content: none !important;
-}
-
-/* Column alignment */
-.col-checkbox {
-  display: flex;
-  justify-content: center;
-}
-
-.col-attr {
-  text-align: left;
+// Always 4 attribute columns (2-5)
+get attributeColumns(): string[] {
+  // Exclude Measure and Checkbox/Ticker
+  return this.fields
+           .filter(f => f.name.toLowerCase() !== 'measure')
+           .slice(0, 4)
+           .map(f => f.name);
 }
 
 
-
-.col-value {
-  display: flex;
-  align-items: center; 
-/* center mat-select vertically */
-}
-
-.col-value mat-form-field {
-  width: 80%;                /* smaller than cell */
-  height:80%;              /* inherit row height */
-  margin: 0;
-  font-size: 14px;    
-}
-
-.col-value mat-select {
-  height: 80%;              /* fill mat-form-field height */
-  line-height: normal;
-  font-size: 13px;           /* smaller font */
-}
-
-.col-unique,
-.col-const,
-.col-actions {
-  text-align: right;
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-/* Action buttons */
-.col-actions button {
-  margin-left: 4px;
-}
-
-/* Browse + Search + Actions stay fixed below table */
-.browse {
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.actions {
-  margin-top: 16px;
-  flex-shrink: 0;
-}
-
-.search-as-button {
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid #1976d2;
-  border-radius: 4px;
-  font-size: 14px;
-  background-color: white;
-  line-height: 36px;
-  box-sizing: border-box;
-  width: 180px;
-}
-
-.search-as-button:focus {
-  border-color: #1565c0;
 }
