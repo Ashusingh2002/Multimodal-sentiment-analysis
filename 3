@@ -1,127 +1,440 @@
-<h2 mat-dialog-title>
-  Base Editor
-  <button mat-icon-button mat-dialog-close style="float:right;">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
+/* ---------------------- Main Editor ---------------------- */
+.factorlab{
+  overflow: hidden;
+  max-height: 100vh;
+}
+.haeding{
+  background-color: #1976d2;
+}
+.main-editor-screen {
+  display: flex;
+  flex-direction: column;
+  max-height: 48vh;
+  padding: 16px 24px;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #fff;
+}
 
-<div class="main-editor-screen">
+/* ---------------------- Criteria Table ---------------------- */
+.criteria-table-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
 
-  <!-- Scrollable Criteria Table -->
-  <div class="criteria-table-container" #criteriaContainer>
-    <div class="criteria-table">
-      <!-- Header -->
-      <div class="criteria-header">
-        <span class="col-checkbox"></span>
-        <span class="col-attr">Attribute</span>
-        <span class="col-value">Value</span>
-        <span class="col-unique">Unique</span>
-        <span class="col-const">Constant</span>
-        <span class="col-actions">Actions</span>
-      </div>
+.criteria-table {
+  display: flex;
+  flex-direction: column;
+}
 
-      <!-- Rows -->
-      <div class="criteria-rows">
-       <div class="criteria-row" *ngFor="let field of fields; let i = index">
-  <mat-checkbox [(ngModel)]="field.checked" class="col-checkbox"></mat-checkbox>
+/* Header */
+.criteria-header {
+  display: grid;
+  grid-template-columns: 40px 2fr 4fr 100px 120px 100px;
+  padding: 6px 0;
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+}
 
-  <!-- Attribute as plain text, NOT mat-form-field -->
-  <span class="col-attr">{{ field.name }}</span>
+.criteria-header span {
+  padding: 0 8px;
+}
 
-  <!-- Value dropdown, smaller and left-aligned -->
-  <mat-form-field appearance="outline" class="col-value">
-    <mat-select [(value)]="field.value" class="value-select">
-      <mat-option *ngFor="let v of field.values" [value]="v" class="value-selected">{{ v }}</mat-option>
-    </mat-select>
-  </mat-form-field>
+.criteria-header .col-attr {
+  text-align: left;
+}
 
-  <div class="col-unique">{{ field.unique }}</div>
-  <div class="col-const">{{ field.constant }}</div>
+.criteria-header .col-value,
+.criteria-header .col-unique,
+.criteria-header .col-const,
+.criteria-header .col-actions {
+  text-align: right;
+}
 
-  <div class="col-actions">
-    <button mat-icon-button color="primary"
-            [matTooltip]="'Info about ' + field.name"
-            matTooltipPosition="above"
-            matTooltipShowDelay="500">
-      <mat-icon>info</mat-icon>
-    </button>
+/* Rows */
+.criteria-rows {
+  display: flex;
+  flex-direction: column;
+}
 
-    <button mat-icon-button color="warn" (click)="removeField(i)">
-      <mat-icon>delete</mat-icon>
-    </button>
-  </div>
-</div>
+.criteria-row {
+  display: grid;
+  grid-template-columns: 40px 2fr 4fr 100px 120px 100px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
 
-      </div>
-    </div>
-  </div>
+.criteria-row > * {
+  position: relative;
+  padding: 0 8px;
+}
 
-  <!-- Search + Browse -->
-  <div class="browse">
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <input
-        type="text"
-        placeholder="Search Attribute"
-        [(ngModel)]="searchText"
-        [matAutocomplete]="auto"
-        class="search-as-button"
-      />
-      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addField($event.option.value)">
-        <mat-option *ngFor="let option of filteredOptions" [value]="option">
-          {{ option }}
-        </mat-option>
-      </mat-autocomplete>
+/* Add | as pseudo element for column separators */
 
-      <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
-        Browse Attribute
-      </button>
-    </div>
-  </div>
+/* Add | as pseudo element for column separators, except before checkbox */
+/* Add | separator after all columns except first (checkbox) and last */
+/* Add | separator after all columns except first (checkbox) and last */
+.criteria-row > *:not(:first-child):not(:last-child)::after,
+.criteria-header span:not(:first-child):not(:last-child)::after {
+  content: '|';
+  position: absolute;
+  right: 0;
+  color: #ccc;
+}
 
-  <!-- Global Actions -->
-  <div class="actions">
-    <button mat-raised-button color="primary" (click)="updateResults()">Update Results</button>
-  </div>
+/* Remove pseudo-element from mat-checkbox explicitly */
+.criteria-row .col-checkbox::after {
+  content: none !important;
+}
 
-</div>
+/* Column alignment */
+.col-checkbox {
+  display: flex;
+  justify-content: center;
+}
 
-<!-- Popup Criteria Selector -->
-<ng-template #criteriaDialog>
-  <h2 mat-dialog-title>
-    Select Attribute
-    <button mat-icon-button mat-dialog-close style="float:right;">
-      <mat-icon>close</mat-icon>
-    </button>
-  </h2>
+.col-attr {
+  text-align: left;
+}
 
-  <mat-dialog-content class="criteria-popup" style="display:flex; gap:20px;">
 
-    <!-- Left menu: horizontal levels -->
-    <div class="menu-container" style="display:flex; gap:10px; max-height:450px; overflow-x:auto; flex:7;">
-      <ng-container *ngFor="let level of menuLevels; let i = index">
-        <div class="menu-level" style="min-width:150px; border-right:1px solid #ccc;">
-          <div *ngFor="let item of level"
-               (click)="selectItem(item, i)"
-               (mouseenter)="hoveredItem = item"
-               style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #ddd; text-align:left;">
-            {{ item.name }}
-          </div>
-        </div>
-      </ng-container>
-    </div>
 
-    <!-- Right info panel -->
-    <div class="info-panel" style="flex:3; border-left:1px solid #ccc; padding-left:10px; max-height:450px; overflow-y:auto;">
-      <div *ngIf="hoveredItem">
-        <p><strong>Name:</strong> {{ hoveredItem.name || '-' }}</p>
-        <p><strong>Short Name:</strong> {{ hoveredItem.shortname || '-' }}</p>
-        <p><strong>Last Updated:</strong> {{ hoveredItem.lastUpdate || '-' }}</p>
-        <p><strong>Description:</strong> {{ hoveredItem.description || '-' }}</p>
-      </div>
-      <div *ngIf="!hoveredItem">
-        Hover over an item to see details
-      </div>
-    </div>
+.col-value {
+  display: flex;
+  align-items: center; 
+/* center mat-select vertically */
+}
 
-  </mat-dialog-content>
-</ng-template>
+.col-value mat-form-field {
+  width: 100%;       /* fill column */
+  min-width: 250px;  /* optional minimum */
+  max-width: 100%;   /* don't exceed column */
+    font-size: 0.9vw;   /* smaller font */
+}
+
+.col-value input {
+  font-size: 0.9vw;
+  padding: 0.4vh 0.5vw;
+}
+
+
+.col-value mat-select {
+  height: 80%;              /* fill mat-form-field height */
+  line-height: normal;
+  font-size: 13px;           /* smaller font */
+}
+
+.col-unique,
+.col-const,
+.col-actions {
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* Action buttons */
+.col-actions button {
+  margin-left: 4px;
+}
+
+/* Browse + Search + Actions stay fixed below table */
+.browse {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.actions {
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.search-as-button {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+  line-height: 36px;
+  box-sizing: border-box;
+  width: 180px;
+}
+
+.search-as-button:focus {
+  border-color: #1565c0;
+}
+.criteria-header {
+
+  padding: 6px 8px;
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+
+  position: sticky;   /* Make sticky */
+  top: 0;             /* Stick to top of scroll container */
+  background: #fff;   /* Needed to cover rows when scrolling */
+  z-index: 10;        /* Stay above table rows */
+}
+/* Browse Attribute Popup */
+.criteria-popup {
+  display: flex;
+  flex-direction: row;        /* side by side */
+  gap: 2vw;
+
+  padding: 1vh 1vw;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Close button */
+.close-btn {
+  float: right;
+}
+
+/* Menu container */
+.menu-container {
+  flex: 3;                   /* take 70% width */
+  max-height: 100%;
+  overflow-y: auto;
+  border-right: 1px solid #ccc; /* optional vertical line */
+}
+
+/* Menu items */
+.menu-item {
+  padding: 1vh 1vw;
+  cursor: pointer;
+  border-bottom: 1px solid #ddd;
+
+}
+
+.menu-item:hover {
+  background-color: #f0f0f0;
+}
+
+/* Info panel */
+.info-panel {
+  flex: 7;                   /* 30% width */
+  padding-left:.5vw;
+  max-height: 100%;
+  overflow-y: auto;
+
+  border-radius: 0.5vh;
+
+}
+.info-item{
+  margin-bottom: 1vh;
+}
+
+/* ---------------------- Value Column (Multi-select) ---------------------- */
+/* ---------------------- Value Column (Multi-select) ---------------------- */
+.col-value {
+    display: flex;
+    align-items: center; /* vertically center in row */
+    flex-wrap: wrap;
+}
+
+/* mat-form-field width and font size */
+.col-value mat-form-field {
+    width: 25vw;           /* wide dropdown */
+    min-width: 200px;
+    max-width: 100%;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Target input container (MDC infix) */
+.criteria-row ::ng-deep .mdc-text-field--outlined .mat-mdc-form-field-infix,
+.criteria-row ::ng-deep .mdc-text-field--no-label .mat-mdc-form-field-infix {
+    padding: 4px 6px !important;   /* reduce vertical padding */
+    min-height: 32px;              /* compact when empty */
+    display: flex;
+    align-items: center;           /* vertical center */
+}
+
+/* mat-chip-grid wrapping */
+.criteria-row ::ng-deep mat-chip-grid {
+    display: flex;
+    flex-wrap: wrap;               /* wrap multiple chips */
+    gap: 4px;
+    align-items: center;           /* vertical center */
+    min-height: 32px;
+}
+
+/* Input element inside chip grid */
+.criteria-row ::ng-deep .mat-mdc-input-element {
+    font-size: 14px !important;
+    height: 24px !important;       /* compact input */
+    line-height: normal !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+}
+
+/* Floating label adjustments */
+.criteria-row ::ng-deep .mat-mdc-floating-label {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    transform: translateY(0) !important; /* align label vertically */
+    top: 4px !important;
+}
+
+/* Floating label when active */
+.criteria-row ::ng-deep .mat-mdc-floating-label.mat-mdc-floating-label-should-float {
+    top: -10px !important;          /* float above input */
+    font-size: 12px !important;     /* smaller when floating */
+}
+
+/* Select trigger shrink for vertical center */
+.criteria-row ::ng-deep .mat-mdc-select-trigger {
+    height: auto !important;
+    font-size: 14px !important;
+    display: flex;
+    align-items: center;
+    padding: 0 !important;
+}
+
+/* mat-option font */
+.criteria-row ::ng-deep .mat-mdc-option {
+    min-height: 28px !important;
+    font-size: 14px !important;
+    padding: 2px 6px !important;
+}
+
+/* Row grid and vertical alignment */
+.criteria-row {
+
+    padding: 6px 8px;
+    min-height: 32px; /* compact when empty */
+}
+
+/* Input placeholder spacing fix */
+.criteria-row ::ng-deep .mat-mdc-input-element::placeholder {
+    font-size: 14px !important;
+    line-height: 24px !important;
+}
+.criteria-row ::ng-deep .hide-label .mat-mdc-floating-label {
+    display: none !important;
+}
+
+
+/* Remove subscript wrapper height to truly center dropdown */
+.criteria-row ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+
+/* Center label vertically when visible */
+.criteria-row ::ng-deep .mat-mdc-floating-label {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    pointer-events: none;
+}
+
+/* Optional: small margin between row and dropdown */
+
+
+.results-table-container {
+  max-height: 30vh;
+  overflow-y: auto;        /* vertical scroll if needed */
+  overflow-x: hidden;      /* no horizontal scroll */
+  box-sizing: border-box;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* Table with fixed 6 columns and word wrap */
+.results-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;     /* fixed column widths */
+}
+
+.results-table-container th,
+.results-table-container td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+  word-wrap: break-word;   /* wrap long text */
+  overflow: hidden;        /* clip overflow */
+  white-space: normal;     /* allow wrapping */
+}
+
+/* Equal width columns for 6-column table */
+.results-table-container th,
+.results-table-container td {
+  width: calc(100% / 6);
+}
+
+/* Sticky header */
+.results-table-container th {
+  background: #f9f9f9;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Row hover effect */
+.results-table-container tr:hover {
+  background: #f0f0f0;
+}
+
+/* Checkbox + basket name column should not wrap */
+
+
+
+.results-table-container {
+  max-height: 30vh;
+
+  overflow-x: hidden;
+  margin: 16px 24px;
+  margin-bottom: 0px;
+  box-sizing: border-box;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.results-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.results-table-container th,
+.results-table-container td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow: hidden;
+}
+
+.results-table-container th {
+  background: #f9f9f9;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10; /* header above rows */
+}
+
+.results-table-container tr:hover {
+  background: #f0f0f0;
+}
