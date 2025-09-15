@@ -1,19 +1,40 @@
-onBrowseItemClick(item: any) {
-  if (this.isMandatory(item.name)) {
-    // Do nothing for mandatory fields
-    return;
-  }
-  this.selectItem(item);
-}
+filterOptions(field: Field) {
+  const search = (field.searchText || '').toLowerCase();
 
-isMandatory(fieldName: string): boolean {
-  return this.fields.some(f => f.name === fieldName && f.mandatory);
+  // Build filters from other fields
+  const filters: Record<string, string[]> = {};
+  this.fields.forEach(f => {
+    if (f !== field && f.value.length > 0) {
+      const jsonKey = this.fieldToJsonKey[f.name];
+      if (jsonKey) {
+        filters[jsonKey] = f.value;
+      }
+    }
+  });
+
+  // Filter entries by other fields
+  const filteredEntries = this.entries.filter(e =>
+    Object.keys(filters).every(jsonKey =>
+      filters[jsonKey].some(val => e[jsonKey] === val)
+    )
+  );
+
+  // --- Special case: Measure
+  if (field.name.toLowerCase() === 'measure') {
+    const allowedValues = ['Raw', 'Std'].filter(m => 
+      (m === 'Raw' && filteredEntries.some(e => e.is_raw_available)) ||
+      (m === 'Std' && filteredEntries.some(e => e.is_std_available))
+    );
+    return allowedValues.filter(opt => opt.toLowerCase().includes(search) && !field.value.includes(opt));
+  }
+
+  // Normal case for other fields
+  const jsonKey = this.fieldToJsonKey[field.name];
+  const allowedValues = [
+    ...new Set(filteredEntries.map(e => e[jsonKey as string]))
+  ];
+
+  return allowedValues
+    .filter(opt => opt && !field.value.includes(opt))
+    .filter(opt => opt.toLowerCase().includes(search));
 }
-<div *ngFor="let item of menuLevels[0]"
-     (click)="onBrowseItemClick(item)"
-     (mouseenter)="hoveredItem = item"
-     [class.disabled]="isMandatory(item.name)"
-     class="menu-item">
-  {{ item.name }}
-  <span *ngIf="isMandatory(item.name)" class="mandatory-asterisk">*</span>
-</div>
