@@ -1,190 +1,202 @@
-import { Component, inject, TemplateRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
-import { MatOptionModule } from '@angular/material/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import {  ViewChild, ElementRef } from '@angular/core';
+<div class="factorlab">
+  <h2 mat-dialog-title class="haeding">
+  Base Editor
+  <button mat-icon-button mat-dialog-close style="float:right;">
+    <mat-icon>close</mat-icon>
+  </button>
+</h2>
+
+<div class="main-editor-screen">
+
+  <!-- Scrollable Criteria Table -->
+  <div class="criteria-table-container" #criteriaContainer>
+    <div class="criteria-table">
+      <!-- Header -->
+      <div class="criteria-header">
+        <span class="col-checkbox"></span>
+        <span class="col-attr">Attribute</span>
+        <span class="col-value">Value</span>
+        <span class="col-unique">Unique</span>
+        <span class="col-const">Constant</span>
+        <span class="col-actions">Actions</span>
+      </div>
+
+      <!-- Rows -->
+      <div class="criteria-rows">
+       <div class="criteria-row" *ngFor="let field of fields; let i = index">
+  <mat-checkbox   [checked]="field.checked" class="col-checkbox"   (change)="onCheckboxChange(field, $event)"></mat-checkbox>
+
+  <!-- Attribute as plain text, NOT mat-form-field -->
+  <span class="col-attr">{{ field.name }}</span>
+
+  <!-- Value dropdown, smaller and left-aligned -->
+<mat-form-field class="full-width" appearance="outline"   [class.hide-label]="field.searchText">
 
 
-interface Field {
-  name: string;
-  value: string;
-  unique: number;
-  constant: number;
-  values: string[];
-  checked?: boolean;
-}
+<mat-chip-grid #chipList>
+  <mat-chip *ngFor="let val of field.value" removable (removed)="removeValue(field, val)">
+    {{ val }}
+    <button matChipRemove><mat-icon>cancel</mat-icon></button>
+  </mat-chip>
 
-@Component({
-  selector: 'app-base-editor',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatListModule,
-    MatCheckboxModule,
-    MatAutocompleteModule,
-    MatOptionModule,
-    MatTooltipModule    // <-- Add this
-  ],
-  templateUrl: './base-editor.component.html',
-  styleUrls: ['./base-editor.component.css']
-})
-export class BaseEditorComponent {
-  dialog = inject(MatDialog);
-  data = inject(MAT_DIALOG_DATA);
-  hoveredItem: any = null;
+<input
+  #chipInput
+  placeholder="Type to search..."
+  [matChipInputFor]="chipList"
+  [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+  [matAutocomplete]="auto"
+  [(ngModel)]="field.searchText"
+  (matChipInputTokenEnd)="addFromInput($event, field)"
+  (click)="toggleAutocomplete(field, chipInput)"
+/>
 
-  @ViewChild('criteriaContainer') criteriaContainer!: ElementRef;
-  @ViewChild('criteriaRows', { read: ElementRef }) criteriaRows!: ElementRef;
-
-  // --- Fields
-  fields: Field[] = [
-    { name: 'Exchange Region', value: 'AMERICAS', unique: 120, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false },
-    { name: 'ImpliedVol 1M', value: 'EUROPE', unique: 80, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false },
-    { name: 'Liquidity', value: 'ASIA', unique: 200, constant: 151760, values: ['AMERICAS', 'EUROPE', 'ASIA'], checked: false }
-  ];
-
-  // --- Search
-  searchText = '';
-  allCriteria: string[] = [
-    'Exchange Region',
-    'ImpliedVol 1M',
-    'ImpliedVol 3M',
-    'ImpliedVol 6M',
-    'ImpliedVol 12M',
-    'Liquidity',
-    'OptionChain'
-  ];
-
-  get filteredOptions(): string[] {
-    if (!this.searchText) return [];
-    return this.allCriteria.filter(c =>
-      c.toLowerCase().includes(this.searchText.toLowerCase())
-    );
-  }
-
-  // --- Popup state
-  selectorOpen = false;
-  menuLevels: any[][] = [];
-  browseDialogRef: any; // <-- store the currently open browse dialog
-  rootCategories = [
-    { name: 'Research', children: [{ name: 'ImpliedVol', children: [{ name: '1M' }, { name: '3M' }, { name: '6M' }, { name: '12M' }] }] },
-    { name: 'Data', children: [{ name: 'Liquidity' }, { name: 'OptionChain' }] }
-  ];
-
-  constructor() {
-    this.menuLevels = [this.rootCategories];
-  }
-
-  // --- Actions
-  removeField(index: number) {
-    this.fields.splice(index, 1);
-  }
-
-  showInfo(field: Field) {
-    alert(`Info about ${field.name}`);
-  }
-
-  updateResults() {
-    alert('Update Results clicked');
-  }
-
-  addField(selectedName: string) {
-    const exists = this.fields.find(f => f.name === selectedName);
-    if (exists) return;
-
-    this.fields.push({
-      name: selectedName,
-      value: '',
-      unique: Math.floor(Math.random() * 200),
-      constant: 151760,
-      values: ['AMERICAS', 'EUROPE', 'ASIA'],
-      checked: false
-    });
-
-    this.searchText = '';
-      setTimeout(() => {
-    if (this.criteriaContainer) {
-      this.criteriaContainer.nativeElement.scrollTop = this.criteriaContainer.nativeElement.scrollHeight;
-    }
-  });
-  }
-
-  // --- Browse Dialog
-// --- Browse Dialog
-openBrowse(templateRef: TemplateRef<any>) {
-  // Reset the menu to root every time
-   this.hoveredItem = null;
-  this.menuLevels = [this.rootCategories];
-
-  this.selectorOpen = true;
-
-this.browseDialogRef = this.dialog.open(templateRef, {
-      width: '1000px',
-      height: '600px',
-      maxWidth: '90vw',
-      maxHeight: '90vh',
-  disableClose: false,
-  autoFocus: true
-});
+</mat-chip-grid>
 
 
-  this.browseDialogRef.afterClosed().subscribe(() => {
-    this.selectorOpen = false;
-    this.browseDialogRef = null;
-  });
-}
+<mat-autocomplete #auto="matAutocomplete" (optionSelected)="addValue(field, $event.option.value)">
+  <mat-option *ngFor="let option of filterOptions(field)" [value]="option">
+    {{ option }}
+  </mat-option>
+</mat-autocomplete>
+
+
+</mat-form-field>
 
 
 
 
 
-selectItem(item: any, level: number) {
-  if (item.children && item.children.length) {
-    this.menuLevels = this.menuLevels.slice(0, level + 1);
-    this.menuLevels.push(item.children);
-
-    // auto-scroll last level into view
-    setTimeout(() => {
-      const levels = document.querySelectorAll('.menu-level');
-      const lastLevel = levels[levels.length - 1] as HTMLElement;
-      lastLevel?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
-    });
-  } else {
-    this.addField(item.name);
-
-    if (this.browseDialogRef) {
-      this.browseDialogRef.close();
-    }
-  }
-}
 
 
 
-  closeBase() {
-  this.dialog.closeAll(); // close BaseEditor
-  if (this.data?.reopenParent) {
-    this.data.reopenParent(); // reopen Equity popup
-  }
-}
 
 
-}
+  <div class="col-unique">{{ field.unique }}</div>
+  <div class="col-const">{{ field.constant }}</div>
 
+  <div class="col-actions">
+
+    <button *ngIf="!field.mandatory"
+            mat-icon-button color="warn"
+            (click)="removeField(i)">
+      <mat-icon>delete</mat-icon>
+    </button>
+    <button mat-icon-button color="primary"
+            [matTooltip]="'Info about ' + field.name"
+            matTooltipPosition="above"
+            matTooltipShowDelay="500">
+      <mat-icon>info</mat-icon>
+    </button>
+
+
+  </div>
+
+</div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Search + Browse -->
+<!-- Browse -->
+<div class="browse">
+  <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
+    Browse Attribute
+  </button>
+  <button mat-raised-button color="primary" (click)="updateResults()">
+    Update Results
+  </button>
+
+  <div *ngIf="results.length > 0" class="plot-btn">
+    <button mat-raised-button color="primary" (click)="plotSelected()">
+      Plot Selected
+    </button>
+  </div>
+</div>
+
+</div>
+
+<!-- Popup Criteria Selector -->
+<!-- Popup Criteria Selector -->
+<ng-template #criteriaDialog>
+  <h2 mat-dialog-title>
+    Select Attribute
+    <button mat-icon-button mat-dialog-close class="close-btn">
+      <mat-icon>close</mat-icon>
+    </button>
+  </h2>
+
+  <mat-dialog-content class="criteria-popup">
+    <!-- Single-level menu -->
+    <div class="menu-container">
+      <div *ngFor="let item of menuLevels[0]"
+           (click)="selectItem(item)"
+           (mouseenter)="hoveredItem = item"
+           class="menu-item">
+        {{ item.name }}
+      </div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="info-panel">
+      <div *ngIf="hoveredItem">
+        <div class="info-item"> <strong>Name:</strong> <div>{{ hoveredItem.name || '-' }}</div></div>
+        <div class="info-item"> <strong>Short Name:</strong> <div>{{ hoveredItem.shortname || '-' }}</div></div>
+        <div class="info-item"> <strong>Last Updated:</strong> <div>{{ hoveredItem.lastUpdate  || '-' }}</div></div>
+        <div class="info-item"> <strong>Description:</strong> <div>{{ hoveredItem.description || '-' }}</div></div>
+      </div>
+      <div *ngIf="!hoveredItem">
+        Hover over an item to see details
+      </div>
+    </div>
+  </mat-dialog-content>
+</ng-template>
+
+
+<!-- Results Table -->
+<!-- Results Table -->
+<div *ngIf="results.length > 0" class="results-table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>           
+          <mat-checkbox
+            [checked]="allSelected()"
+            [indeterminate]="someSelected() && !allSelected()"
+            (change)="toggleSelectAll($event.checked)"> </mat-checkbox>
+          Basket Name</th>
+        <th>Factor Description</th>
+        <th>Measure</th>
+        <th>Basket_region</th>
+        <th>Factor_name</th>
+        <th>Factor_group_name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of results">
+        <!-- Column 1: Checkbox + Basket Name -->
+        <td class="ticker-cell">
+          <mat-checkbox [checked]="selectedRows.has(row.object_id)"
+                        (change)="toggleRowSelection(row.object_id, $event.checked)">
+          </mat-checkbox>
+          <span>{{ row.basket_name || '--'}}</span>
+        </td>
+
+        <!-- Columns 2-5: Attributes -->
+        <td>{{ row.factor_description || '--' }}</td>
+        <td>{{ row.measure || '--' }}</td>
+        <td>{{ row.basket_region || '--' }}</td>
+        <td>{{ row.factor_name|| '--' }}</td>
+
+        <!-- Column 6: Measure -->
+        <td>{{ row.factor_group_name || '--' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Plot Button -->
+
+</div>
+
+
+</div>
