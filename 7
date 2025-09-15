@@ -1,20 +1,31 @@
-<button mat-icon-button
-        [matTooltip]="getTooltipText(hoveredItem)"
-        matTooltipClass="custom-tooltip"
-        matTooltipPosition="above">
-  <mat-icon>info</mat-icon>
-</button>
-getTooltipText(item: any): string {
-  if (!item) return '';
-  return `
-    <div><strong>Name:</strong> ${item.name || '-'}</div>
-    <div><strong>Short Name:</strong> ${item.shortname || '-'}</div>
-    <div><strong>Last Updated:</strong> ${item.lastUpdate || '-'}</div>
-    <div><strong>Description:</strong> ${item.description || '-'}</div>
-  `;
+hoveredItem: any = null;
+
+onMouseEnter(item: any) {
+  this.hoveredItem = item;
 }
-.custom-tooltip {
-  white-space: normal;  /* allow multiline */
+onMouseLeave() {
+  this.hoveredItem = null;
+}
+.custom-tooltip-menu .mat-menu-content {
+  padding: 8px 12px;
   max-width: 300px;
+  white-space: normal;
   font-size: 13px;
 }
+.tooltip-panel div {
+  margin-bottom: 4px;
+}
+<!-- Info Icon -->
+<button mat-icon-button [matMenuTriggerFor]="infoMenu">
+  <mat-icon>info</mat-icon>
+</button>
+
+<!-- Menu as tooltip -->
+<mat-menu #infoMenu="matMenu" class="custom-tooltip-menu" overlapTrigger="false">
+  <div class="tooltip-panel">
+    <div><strong>Name:</strong> {{ hoveredItem?.name || '-' }}</div>
+    <div><strong>Short Name:</strong> {{ hoveredItem?.shortname || '-' }}</div>
+    <div><strong>Last Updated:</strong> {{ hoveredItem?.lastUpdate || '-' }}</div>
+    <div><strong>Description:</strong> {{ hoveredItem?.description || '-' }}</div>
+  </div>
+</mat-menu>
