@@ -1,40 +1,29 @@
-filterOptions(field: Field) {
-  const search = (field.searchText || '').toLowerCase();
+getSelectedBasketNamesForValue(field: Field, val: string): string {
+  // Find the Basket_Name field
+  const basketField = this.fields.find(f => f.name === 'Basket_Name');
+  if (!basketField) return '';
 
-  // Build filters from other fields
-  const filters: Record<string, string[]> = {};
-  this.fields.forEach(f => {
-    if (f !== field && f.value.length > 0) {
-      const jsonKey = this.fieldToJsonKey[f.name];
-      if (jsonKey) {
-        filters[jsonKey] = f.value;
-      }
-    }
-  });
+  // Only consider baskets that are currently selected
+  const selectedBaskets = basketField.value;
 
-  // Filter entries by other fields
-  const filteredEntries = this.entries.filter(e =>
-    Object.keys(filters).every(jsonKey =>
-      filters[jsonKey].some(val => e[jsonKey] === val)
+  // Filter entries for this value AND selected baskets
+  const baskets = this.entries
+    .filter(e =>
+      e[this.fieldToJsonKey[field.name] as string] === val &&
+      selectedBaskets.includes(e.basket_name)
     )
-  );
+    .map(e => e.basket_name);
 
-  // --- Special case: Measure
-  if (field.name.toLowerCase() === 'measure') {
-    const allowedValues = ['Raw', 'Std'].filter(m => 
-      (m === 'Raw' && filteredEntries.some(e => e.is_raw_available)) ||
-      (m === 'Std' && filteredEntries.some(e => e.is_std_available))
-    );
-    return allowedValues.filter(opt => opt.toLowerCase().includes(search) && !field.value.includes(opt));
-  }
-
-  // Normal case for other fields
-  const jsonKey = this.fieldToJsonKey[field.name];
-  const allowedValues = [
-    ...new Set(filteredEntries.map(e => e[jsonKey as string]))
-  ];
-
-  return allowedValues
-    .filter(opt => opt && !field.value.includes(opt))
-    .filter(opt => opt.toLowerCase().includes(search));
+  // Remove duplicates and join
+  return [...new Set(baskets)].join(', ');
 }
+<mat-chip
+  *ngFor="let val of field.value"
+  [matTooltip]="getSelectedBasketNamesForValue(field, val)"
+  removable
+  (removed)="removeValue(field, val)">
+  {{ val }}
+  <button matChipRemove>
+    <mat-icon>cancel</mat-icon>
+  </button>
+</mat-chip>
