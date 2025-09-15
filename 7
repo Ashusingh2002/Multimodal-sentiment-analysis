@@ -1,86 +1,14 @@
-isTableMaximized = false;
-  @ViewChild('popupTable') popupTable!: TemplateRef<any>;
-
-
-
-popupDialogRef!: MatDialogRef<any>;
-
-toggleTable() {
-  if (this.isTableMaximized) {
-    // Close only the expanded table popup
-    if (this.popupDialogRef) {
-      this.popupDialogRef.close();
-      this.popupDialogRef = undefined!;
-    }
-    this.isTableMaximized = false;
-  } else {
-    // Open the popup table
-    this.popupDialogRef = this.dialog.open(this.popupTable, {
-      width: '90%',
-      height: '90%',
-      maxWidth: '95vw'
-    });
-
-    // When the popup closes manually, restore inline table
-    this.popupDialogRef.afterClosed().subscribe(() => {
-      this.isTableMaximized = false;
-    });
-
-    this.isTableMaximized = true;
-  }
-}
-<ng-template #popupTable>
-  <h2 mat-dialog-title>
-   Results
-    <button mat-icon-button (click)="toggleTable()" style="float:right;">
-      <mat-icon>close_fullscreen</mat-icon>
+<th>
+  <div class="th-content">
+    Factor_group_name
+    <button mat-icon-button (click)="toggleTable()">
+      <mat-icon>open_in_full</mat-icon>
     </button>
-  </h2>
-  <mat-dialog-content class="results-table-popup">
-    <div class="results-table-container">
-        <table>
-    <thead>
-      <tr>
-        <th>           
-          <mat-checkbox
-            [checked]="allSelected()"
-            [indeterminate]="someSelected() && !allSelected()"
-            (change)="toggleSelectAll($event.checked)"> </mat-checkbox>
-          Basket Name</th>
-        <th>Factor Description</th>
-        <th>Measure</th>
-        <th>Basket_region</th>
-        <th>Factor_name</th>
-        <th>Factor_group_name</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of results">
-        <!-- Column 1: Checkbox + Basket Name -->
-        <td class="ticker-cell">
-          <mat-checkbox [checked]="selectedRows.has(row.object_id)"
-                        (change)="toggleRowSelection(row.object_id, $event.checked)">
-          </mat-checkbox>
-          <span>{{ row.basket_name || '--'}}</span>
-        </td>
-
-        <!-- Columns 2-5: Attributes -->
-        <td>{{ row.factor_description || '--' }}</td>
-        <td>{{ row.measure || '--' }}</td>
-        <td>{{ row.basket_region || '--' }}</td>
-        <td>{{ row.factor_name|| '--' }}</td>
-
-        <!-- Column 6: Measure -->
-        <td>{{ row.factor_group_name || '--' }}</td>
-      </tr>
-    </tbody>
-  </table>
-    </div>
-
-
-  </mat-dialog-content>
-</ng-template>
- && !isTableMaximized
-  <button mat-icon-button (click)="toggleTable()">
-    <mat-icon>open_in_full</mat-icon>
-  </button>
+  </div>
+</th>
+/* in your component CSS */
+.th-content {
+  display: flex;
+  align-items: center;   /* vertically centers text and icon */
+  gap: 4px;              /* space between text and icon */
+}
