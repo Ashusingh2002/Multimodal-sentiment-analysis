@@ -1,16 +1,3 @@
-getTooltip(field: Field, value: string): string {
-  // Only compute for fields that map to JSON keys
-  const jsonKey = this.fieldToJsonKey[field.name];
-  if (!jsonKey) return '';
-
-  // Find all matching entries in JSON
-  const matchingEntries = this.entries.filter(e => e[jsonKey] === value);
-
-  // Collect Basket_Name(s)
-  const baskets = [...new Set(matchingEntries.map(e => e['basket_name']))];
-
-  return baskets.length > 0 ? `Basket(s): ${baskets.join(', ')}` : '';
-}
 <mat-chip *ngFor="let val of field.value" 
           [matTooltip]="getTooltip(field, val)" 
           removable 
@@ -18,3 +5,12 @@ getTooltip(field: Field, value: string): string {
   {{ val }}
   <button matChipRemove><mat-icon>cancel</mat-icon></button>
 </mat-chip>
+getTooltip(field: Field, value: string): string {
+  const jsonKey = this.fieldToJsonKey[field.name];
+  if (!jsonKey) return '';
+
+  const matchingEntries = this.entries.filter(e => e[jsonKey] === value);
+  const baskets = [...new Set(matchingEntries.map(e => e['basket_name']))];
+
+  return baskets.length > 0 ? `Basket(s): ${baskets.join(', ')}` : '';
+}
