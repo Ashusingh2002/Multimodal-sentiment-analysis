@@ -1,14 +1,25 @@
-<th>
-  <div class="th-content">
-    Factor_group_name
-    <button mat-icon-button (click)="toggleTable()">
-      <mat-icon>open_in_full</mat-icon>
-    </button>
+<ng-template #tooltipTemplate let-item="item">
+  <div class="tooltip-panel">
+    <div class="tooltip-item"><strong>Name:</strong> {{ item.name || '-' }}</div>
+    <div class="tooltip-item"><strong>Short Name:</strong> {{ item.shortname || '-' }}</div>
+    <div class="tooltip-item"><strong>Last Updated:</strong> {{ item.lastUpdate || '-' }}</div>
+    <div class="tooltip-item"><strong>Description:</strong> {{ item.description || '-' }}</div>
   </div>
-</th>
-/* in your component CSS */
-.th-content {
-  display: flex;
-  align-items: center;   /* vertically centers text and icon */
-  gap: 4px;              /* space between text and icon */
+</ng-template>
+@ViewChild('tooltipTemplate') tooltipTemplate!: TemplateRef<any>;
+
+showTooltip(event: MouseEvent, item: any) {
+  const tooltipRef = this.dialog.open(this.tooltipTemplate, {
+    data: item,
+    panelClass: 'custom-tooltip',
+    position: { top: event.clientY + 10, left: event.clientX + 10 },
+    hasBackdrop: false,
+    disableClose: true
+  });
+
+  setTimeout(() => tooltipRef.close(), 3000); // auto close
 }
+<button mat-icon-button
+        (mouseenter)="showTooltip($event, hoveredItem)">
+  <mat-icon>info</mat-icon>
+</button>
