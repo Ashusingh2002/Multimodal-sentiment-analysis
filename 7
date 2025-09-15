@@ -1,39 +1,86 @@
-minimizeDialog() {
-  this.dialog.closeAll(); // closes the dialog completely
+isTableMaximized = false;
+  @ViewChild('popupTable') popupTable!: TemplateRef<any>;
 
-  // Optionally: reopen a minimized floating button at bottom/right
-  const minimizedBtn = document.createElement('button');
-  minimizedBtn.innerText = 'Open Base Editor';
-  minimizedBtn.classList.add('minimized-btn');
-  minimizedBtn.onclick = () => {
-    minimizedBtn.remove();
-    this.dialog.open(BaseEditorComponent, {
-      width: '80vw',
-      height: '80vh',
-      data: this.data // keep context
+
+
+popupDialogRef!: MatDialogRef<any>;
+
+toggleTable() {
+  if (this.isTableMaximized) {
+    // Close only the expanded table popup
+    if (this.popupDialogRef) {
+      this.popupDialogRef.close();
+      this.popupDialogRef = undefined!;
+    }
+    this.isTableMaximized = false;
+  } else {
+    // Open the popup table
+    this.popupDialogRef = this.dialog.open(this.popupTable, {
+      width: '90%',
+      height: '90%',
+      maxWidth: '95vw'
     });
-  };
 
-  document.body.appendChild(minimizedBtn);
+    // When the popup closes manually, restore inline table
+    this.popupDialogRef.afterClosed().subscribe(() => {
+      this.isTableMaximized = false;
+    });
+
+    this.isTableMaximized = true;
+  }
 }
-<h2 mat-dialog-title class="heading">
-  Base Editor
-  <button mat-icon-button (click)="minimizeDialog()" style="float:right;">
-    <mat-icon>minimize</mat-icon>
+<ng-template #popupTable>
+  <h2 mat-dialog-title>
+   Results
+    <button mat-icon-button (click)="toggleTable()" style="float:right;">
+      <mat-icon>close_fullscreen</mat-icon>
+    </button>
+  </h2>
+  <mat-dialog-content class="results-table-popup">
+    <div class="results-table-container">
+        <table>
+    <thead>
+      <tr>
+        <th>           
+          <mat-checkbox
+            [checked]="allSelected()"
+            [indeterminate]="someSelected() && !allSelected()"
+            (change)="toggleSelectAll($event.checked)"> </mat-checkbox>
+          Basket Name</th>
+        <th>Factor Description</th>
+        <th>Measure</th>
+        <th>Basket_region</th>
+        <th>Factor_name</th>
+        <th>Factor_group_name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of results">
+        <!-- Column 1: Checkbox + Basket Name -->
+        <td class="ticker-cell">
+          <mat-checkbox [checked]="selectedRows.has(row.object_id)"
+                        (change)="toggleRowSelection(row.object_id, $event.checked)">
+          </mat-checkbox>
+          <span>{{ row.basket_name || '--'}}</span>
+        </td>
+
+        <!-- Columns 2-5: Attributes -->
+        <td>{{ row.factor_description || '--' }}</td>
+        <td>{{ row.measure || '--' }}</td>
+        <td>{{ row.basket_region || '--' }}</td>
+        <td>{{ row.factor_name|| '--' }}</td>
+
+        <!-- Column 6: Measure -->
+        <td>{{ row.factor_group_name || '--' }}</td>
+      </tr>
+    </tbody>
+  </table>
+    </div>
+
+
+  </mat-dialog-content>
+</ng-template>
+ && !isTableMaximized
+  <button mat-icon-button (click)="toggleTable()">
+    <mat-icon>open_in_full</mat-icon>
   </button>
-  <button mat-icon-button mat-dialog-close style="float:right;">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
-.minimized-btn {
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  background: #1976d2;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  z-index: 2000;
-}
