@@ -1,30 +1,20 @@
-filterOptions(field: Field) {
-  const search = (field.searchText || '').toLowerCase();
+getTooltip(field: Field, value: string): string {
+  // Only compute for fields that map to JSON keys
+  const jsonKey = this.fieldToJsonKey[field.name];
+  if (!jsonKey) return '';
 
-  // Build filters from other fields
-  const filters: Record<string, string[]> = {};
-  this.fields.forEach(f => {
-    if (f !== field && f.value.length > 0) {
-      const jsonKey = this.fieldToJsonKey[f.name];
-      if (jsonKey) {
-        filters[jsonKey] = f.value;
-      }
-    }
-  });
+  // Find all matching entries in JSON
+  const matchingEntries = this.entries.filter(e => e[jsonKey] === value);
 
-  // Filter entries
-  const filteredEntries = this.entries.filter(e =>
-    Object.keys(filters).every(jsonKey =>
-      filters[jsonKey].some(val => e[jsonKey] === val)
-    )
-  );
+  // Collect Basket_Name(s)
+  const baskets = [...new Set(matchingEntries.map(e => e['basket_name']))];
 
-  // For Basket_Name, always show all unique options from filtered entries
-  const allowedValues = field.name === 'Basket_Name'
-    ? [...new Set(this.entries.map(e => e['basket_name']))]
-    : [...new Set(filteredEntries.map(e => e[this.fieldToJsonKey[field.name] as string]))];
-
-  return allowedValues
-    .filter(opt => opt && !field.value.includes(opt))
-    .filter(opt => opt.toLowerCase().includes(search));
+  return baskets.length > 0 ? `Basket(s): ${baskets.join(', ')}` : '';
 }
+<mat-chip *ngFor="let val of field.value" 
+          [matTooltip]="getTooltip(field, val)" 
+          removable 
+          (removed)="removeValue(field, val)">
+  {{ val }}
+  <button matChipRemove><mat-icon>cancel</mat-icon></button>
+</mat-chip>
