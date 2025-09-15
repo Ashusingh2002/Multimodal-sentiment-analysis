@@ -1,25 +1,20 @@
-<ng-template #tooltipTemplate let-item="item">
-  <div class="tooltip-panel">
-    <div class="tooltip-item"><strong>Name:</strong> {{ item.name || '-' }}</div>
-    <div class="tooltip-item"><strong>Short Name:</strong> {{ item.shortname || '-' }}</div>
-    <div class="tooltip-item"><strong>Last Updated:</strong> {{ item.lastUpdate || '-' }}</div>
-    <div class="tooltip-item"><strong>Description:</strong> {{ item.description || '-' }}</div>
-  </div>
-</ng-template>
-@ViewChild('tooltipTemplate') tooltipTemplate!: TemplateRef<any>;
-
-showTooltip(event: MouseEvent, item: any) {
-  const tooltipRef = this.dialog.open(this.tooltipTemplate, {
-    data: item,
-    panelClass: 'custom-tooltip',
-    position: { top: event.clientY + 10, left: event.clientX + 10 },
-    hasBackdrop: false,
-    disableClose: true
-  });
-
-  setTimeout(() => tooltipRef.close(), 3000); // auto close
-}
 <button mat-icon-button
-        (mouseenter)="showTooltip($event, hoveredItem)">
+        [matTooltip]="getTooltipText(hoveredItem)"
+        matTooltipClass="custom-tooltip"
+        matTooltipPosition="above">
   <mat-icon>info</mat-icon>
 </button>
+getTooltipText(item: any): string {
+  if (!item) return '';
+  return `
+    <div><strong>Name:</strong> ${item.name || '-'}</div>
+    <div><strong>Short Name:</strong> ${item.shortname || '-'}</div>
+    <div><strong>Last Updated:</strong> ${item.lastUpdate || '-'}</div>
+    <div><strong>Description:</strong> ${item.description || '-'}</div>
+  `;
+}
+.custom-tooltip {
+  white-space: normal;  /* allow multiline */
+  max-width: 300px;
+  font-size: 13px;
+}
