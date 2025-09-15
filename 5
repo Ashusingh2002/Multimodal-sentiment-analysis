@@ -1,21 +1,19 @@
+onBrowseItemClick(item: any) {
+  if (this.isMandatory(item.name)) {
+    // Do nothing for mandatory fields
+    return;
+  }
+  this.selectItem(item);
+}
+
 isMandatory(fieldName: string): boolean {
   return this.fields.some(f => f.name === fieldName && f.mandatory);
 }
 <div *ngFor="let item of menuLevels[0]"
-     (click)="!isMandatory(item.name) && selectItem(item)"
+     (click)="onBrowseItemClick(item)"
      (mouseenter)="hoveredItem = item"
      [class.disabled]="isMandatory(item.name)"
      class="menu-item">
   {{ item.name }}
   <span *ngIf="isMandatory(item.name)" class="mandatory-asterisk">*</span>
 </div>
-.mandatory-asterisk {
-  color: red;
-  margin-left: 2px;
-  font-weight: bold;
-}
-
-.menu-item.disabled {
-  pointer-events: none; /* disable click */
-  opacity: 0.6;         /* greyed out */
-}
