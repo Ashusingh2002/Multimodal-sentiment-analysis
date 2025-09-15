@@ -1,46 +1,10 @@
-<!-- base-editor.component.html -->
-<h2 mat-dialog-title class="dialog-header">
-  Base Editor
-
-  <span class="spacer"></span>
-
-  <!-- Minimize / Maximize button -->
-  <button mat-icon-button (click)="toggleMinimize()">
-    <mat-icon>{{ isMinimized ? 'unfold_more' : 'unfold_less' }}</mat-icon>
-  </button>
-
-  <!-- Close button -->
-  <button mat-icon-button (click)="closeBase()">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
-
-<!-- Collapsible content -->
-<mat-dialog-content *ngIf="!isMinimized">
-  <!-- all your existing dialog body -->
-  <div>
-    <p>Dialog body goes here</p>
-    <!-- criteria, table, etc. -->
-  </div>
-</mat-dialog-content>
-// base-editor.component.ts
-isMinimized = false;
+minimized = false;
 
 toggleMinimize() {
-  this.isMinimized = !this.isMinimized;
+  this.minimized = !this.minimized;
 
-  if (this.browseDialogRef) {
-    this.browseDialogRef.updateSize(
-      '40vw',
-      this.isMinimized ? '60px' : '50vh'   // shrink height when minimized
-    );
+  const container = document.querySelector('.mat-mdc-dialog-container') as HTMLElement;
+  if (container) {
+    container.style.display = this.minimized ? 'none' : 'block';
   }
-}
-/* base-editor.component.css */
-.dialog-header {
-  display: flex;
-  align-items: center;
-}
-.spacer {
-  flex: 1;
 }
