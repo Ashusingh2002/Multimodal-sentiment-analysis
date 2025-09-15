@@ -1,29 +1,37 @@
-getSelectedBasketNamesForValue(field: Field, val: string): string {
-  // Find the Basket_Name field
+filterOptions(field: Field) {
+  const search = (field.searchText || '').toLowerCase();
+
+  // Find currently selected baskets
   const basketField = this.fields.find(f => f.name === 'Basket_Name');
-  if (!basketField) return '';
+  const selectedBaskets = basketField?.value || [];
 
-  // Only consider baskets that are currently selected
-  const selectedBaskets = basketField.value;
+  let filteredEntries = this.entries;
 
-  // Filter entries for this value AND selected baskets
-  const baskets = this.entries
-    .filter(e =>
-      e[this.fieldToJsonKey[field.name] as string] === val &&
-      selectedBaskets.includes(e.basket_name)
-    )
-    .map(e => e.basket_name);
+  // Special handling for Basket_Name itself: no filter
+  if (field.name !== 'Basket_Name') {
+    filteredEntries = filteredEntries.filter(e =>
+      selectedBaskets.length ? selectedBaskets.includes(e.basket_name) : true
+    );
+  }
 
-  // Remove duplicates and join
-  return [...new Set(baskets)].join(', ');
+  // Apply other filters (excluding current field)
+  this.fields.forEach(f => {
+    if (f !== field && f.value.length > 0 && f.name !== 'Basket_Name') {
+      const jsonKey = this.fieldToJsonKey[f.name];
+      if (jsonKey) {
+        filteredEntries = filteredEntries.filter(e =>
+          f.value.includes(e[jsonKey])
+        );
+      }
+    }
+  });
+
+  // Collect allowed values for current field
+  const allowedValues = [
+    ...new Set(filteredEntries.map(e => this.fieldToJsonKey[field.name] ? e[this.fieldToJsonKey[field.name] as string] : e[field.name.toLowerCase()]))
+  ];
+
+  return allowedValues
+    .filter(opt => opt && !field.value.includes(opt))
+    .filter(opt => opt.toLowerCase().includes(search));
 }
-<mat-chip
-  *ngFor="let val of field.value"
-  [matTooltip]="getSelectedBasketNamesForValue(field, val)"
-  removable
-  (removed)="removeValue(field, val)">
-  {{ val }}
-  <button matChipRemove>
-    <mat-icon>cancel</mat-icon>
-  </button>
-</mat-chip>
