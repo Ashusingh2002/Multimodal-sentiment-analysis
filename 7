@@ -35,4 +35,5 @@ export interface DropdownResponse {
   universeCount: number;
 }
 field.values = (res.uniqueValues ?? []).filter(v => v && v.trim() !== '');
+  console.log(`🔹 Requesting values for ${field.name} with filters:`, filters);
 
