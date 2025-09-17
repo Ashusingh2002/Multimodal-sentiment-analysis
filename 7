@@ -29,3 +29,8 @@
     field.constant = res.universeCount ?? 0; // universe count
   });
 }
+export interface DropdownResponse {
+  uniqueValues: string[];
+  matchCount: number;
+  universeCount: number;
+}
