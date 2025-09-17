@@ -1,6 +1,18 @@
-     field['valueTooltips'] = {};
-      field.values.forEach(val => {
-        field['valueTooltips'][val] = Object.keys(filters)
-          .filter(fKey => filters[fKey].split(',').includes(val))
-          .join(', ') || 'Available'; // fallback text if no parent matches
-      });
+// Add this inside your subscribe next block, after you set field.values
+field.valueTooltips = {}; // initialize
+
+field.values.forEach(val => {
+  const sources: string[] = [];
+
+  Object.keys(filters).forEach(fKey => {
+    const filterVal = filters[fKey];
+    if (filterVal && typeof filterVal === 'string') {
+      // Only add if this dropdown contains the current value
+      if (filterVal.split(',').includes(val)) {
+        sources.push(fKey);
+      }
+    }
+  });
+
+  field.valueTooltips![val] = sources.length ? sources.join(', ') : 'Available';
+});
