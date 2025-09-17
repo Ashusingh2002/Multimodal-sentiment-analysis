@@ -1,39 +1,67 @@
-  getDropdownValues(fieldParam: string, filters: Record<string, string[]>): Observable<DropdownResponse> {
-    let params = new HttpParams();
-    Object.keys(filters).forEach(key => {
-      filters[key].forEach(v => {
-        params = params.append(key, v);
-      });
-    });
+getResults(filters: any) {
+  console.log('Filters sent to API:', filters);  // log request
+  return this.proxy.post('/getResults', filters)  // use your existing proxy method
+    .pipe(
+      tap(res => console.log('API response for getResults:', res))  // log response
+    );
+}
+updateResults() {
+  // Ensure mandatory fields are selected
+  const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
+  const missing = mandatoryFields.filter(f => {
+    const field = this.fields.find(x => x.name === f);
+    return !field || field.value.length === 0;
+  });
 
-    // 👇 now typed to DropdownResponse instead of string[]
-    return this.http.get<DropdownResponse>(`/api/unique/${fieldParam}`, { params });
+  if (missing.length > 0) {
+    this.snackBar.open(
+      'Please select at least one value for all mandatory fields',
+      'Close',
+      { duration: 3000, verticalPosition: 'top' }
+    );
+    return;
   }
-  fetchDropdownValues(field: Field) {
-  const apiParam = this.fieldToApiParam[field.name];
-  if (!apiParam) return;
 
+  // Build filters object to send to backend
   const filters: Record<string, string[]> = {};
   this.fields.forEach(f => {
-    const paramKey = this.fieldToApiParam[f.name];
-    if (paramKey && f.value.length > 0 && f.name !== field.name) {
-      filters[paramKey] = f.value;
+    if (f.value.length > 0) {
+      filters[f.name] = f.value;
     }
   });
 
-  this.filterService.getDropdownValues(apiParam, filters).subscribe(res => {
-    console.log(`API response for ${field.name}:`, res);
+  // Call service
+  this.proxyService.getResults(filters).subscribe({
+    next: (res: any) => {
+      console.log('API returned:', res);
 
-    field.values = res.uniqueValues ?? [];   // dropdown options
-    field.unique = res.matchCount ?? 0;      // match count
-    field.constant = res.universeCount ?? 0; // universe count
+      // Map API response to table rows
+      this.results = res.uniquValues.map((val: string) => ({
+        basket_name: val,           // adjust according to your API keys
+        factor_description: '',     // fill if API provides
+        measure: '',                // fill if API provides
+        unique: res.matchcount,
+        constant: res.universecount,
+        object_id: val
+      }));
+
+      this.selectedRows.clear();
+      this.selectAllChecked = false;
+
+      if (this.results.length === 0) {
+        this.snackBar.open('No matching entries found', 'Close', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+      }
+    },
+    error: (err) => {
+      console.error('Error fetching results:', err);
+      this.snackBar.open('Failed to fetch results', 'Close', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+    }
   });
 }
-export interface DropdownResponse {
-  uniqueValues: string[];
-  matchCount: number;
-  universeCount: number;
-}
-field.values = (res.uniqueValues ?? []).filter(v => v && v.trim() !== '');
-  console.log(`🔹 Requesting values for ${field.name} with filters:`, filters);
-
+private proxyService: ProxyService
