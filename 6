@@ -1,28 +1,131 @@
- if (field.name === 'Measure') {
-    const measureField = this.fields.find(f => f.name === 'Measure');
-    const measureFilters: Record<string, boolean> = { ...filters };
+// Tracks which parent values caused a child value to appear
+childValueSources: Record<string, Record<string, Set<string>>> = {};
+FetchDropdownValues(field: Field) {
+  const apiParam = this.fieldToApiParam[field.name];
+  if (!apiParam) return;
 
-    if (measureField?.value.includes('Raw')) measureFilters['is_raw_available'] = true;
-    if (measureField?.value.includes('Std')) measureFilters['is_std_available'] = true;
+  // Build filters for all other fields
+  const filters: Record<string, string> = {};
+  this.fields.forEach(f => {
+    const paramKey = this.fieldToApiParam[f.name];
+    if (paramKey && f.value.length > 0 && f.name !== field.name) {
+      filters[paramKey] = f.value.join(',');
+    }
+  });
 
-    this.filterService.getDropdownValues('measure', measureFilters).subscribe({
-      next: (res) => {
-        const updatedValues: string[] = [];
+  // Handle Measure separately
+  if (field.name === 'Measure') {
+    ['is_raw_available', 'is_std_available'].forEach(measureKey => {
+      this.fields.forEach(f => {
+        const paramKey = this.fieldToApiParam[f.name];
+        if (paramKey && f.value.length > 0) {
+          filters[paramKey] = f.value.join(',');
+        }
+      });
 
-        if (res.uniqueValues?.includes('is_raw_available_true')) updatedValues.push('Raw');
-        if (res.uniqueValues?.includes('is_std_available_true')) updatedValues.push('Std');
+      this.filterService.getDropdownValues(measureKey, filters).subscribe(res => {
+        const addVal = measureKey === 'is_raw_available' ? 'Raw' : 'Std';
+        if (res.uniqueValues?.includes(true)) {
+          if (!field.values.includes(addVal)) field.values.push(addVal);
+        } else {
+          const idx = field.values.indexOf(addVal);
+          if (idx >= 0) field.values.splice(idx, 1);
+        }
+      });
+    });
+    return;
+  }
 
-        field.values = updatedValues;
-        field.unique = res.unique ?? 0;
-        field.constant = res.constant ?? 0;
-      },
-      error: () => {
-        field.values = [];
-        field.unique = 0;
-        field.constant = 0;
-        this.snackBar.open(`API call failed for Measure`, 'Close', { duration: 3000 });
+  // Normal fields
+  this.filterService.getDropdownValues(apiParam, filters).subscribe({
+    next: (res) => {
+      // Track which parent value caused each child value
+      if (!this.childValueSources[field.name]) this.childValueSources[field.name] = {};
+      const sources = this.childValueSources[field.name];
+
+      const newValues = res.uniqueValues ?? [];
+      newValues.forEach(v => {
+        if (!field.values.includes(v)) field.values.push(v);
+
+        if (!sources[v]) sources[v] = new Set();
+        Object.values(filters).forEach(parentVals => {
+          parentVals.split(',').forEach(p => sources[v].add(p));
+        });
+      });
+
+      // Optional: remove previously selected values no longer valid
+      field.value = field.value.filter(v => field.values.includes(v));
+    },
+    error: () => {
+      field.values = [];
+      field.value = [];
+      this.snackBar.open(`API call failed for field ${field.name}`, 'Close', { duration: 3000 });
+    }
+  });
+}
+
+onFieldValueAdd(parentField: Field, value: string) {
+  this.fields.forEach(childField => {
+    if (childField.name === parentField.name) return;
+
+    const apiParam = this.fieldToApiParam[childField.name];
+    if (!apiParam) return;
+
+    const filters: Record<string, string> = {};
+    filters[this.fieldToApiParam[parentField.name]] = value;
+
+    this.filterService.getDropdownValues(apiParam, filters).subscribe(res => {
+      const newValues = res.uniqueValues ?? [];
+      if (!this.childValueSources[childField.name]) this.childValueSources[childField.name] = {};
+      const sources = this.childValueSources[childField.name];
+
+      newValues.forEach(v => {
+        if (!childField.values.includes(v)) childField.values.push(v);
+        if (!childField.value.includes(v)) childField.value.push(v);
+
+        if (!sources[v]) sources[v] = new Set();
+        sources[v].add(value);
+      });
+    });
+  });
+}
+
+onFieldValueRemove(parentField: Field, value: string) {
+  this.fields.forEach(childField => {
+    if (childField.name === parentField.name) return;
+
+    const sources = this.childValueSources[childField.name] || {};
+    Object.keys(sources).forEach(childVal => {
+      sources[childVal].delete(value);
+
+      if (sources[childVal].size === 0) {
+        const idx = childField.value.indexOf(childVal);
+        if (idx >= 0) childField.value.splice(idx, 1);
+        delete sources[childVal];
       }
     });
 
-    return; // skip normal logic
+    // Remove from available options if no source left
+    childField.values = [...new Set(childField.values.filter(v => !sources[v] || sources[v].size > 0))];
+  });
+}
+addFromInput(event: MatChipInputEvent, field: Field) {
+  const value = (event.value || '').trim();
+  if (!value) return;
+
+  if (!field.value.includes(value)) {
+    field.value.push(value);
+    field.searchText = '';
+    this.onFieldValueAdd(field, value);
   }
+  event.chipInput?.clear();
+}
+
+removeValue(field: Field, value: string) {
+  const index = field.value.indexOf(value);
+  if (index >= 0) {
+    field.value.splice(index, 1);
+    this.onFieldValueRemove(field, value);
+  }
+}
+
