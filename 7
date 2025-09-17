@@ -1,12 +1,4 @@
-getResults(filters: any) {
-  console.log('Filters sent to API:', filters);  // log request
-  return this.proxy.post('/getResults', filters)  // use your existing proxy method
-    .pipe(
-      tap(res => console.log('API response for getResults:', res))  // log response
-    );
-}
 updateResults() {
-  // Ensure mandatory fields are selected
   const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
   const missing = mandatoryFields.filter(f => {
     const field = this.fields.find(x => x.name === f);
@@ -22,7 +14,7 @@ updateResults() {
     return;
   }
 
-  // Build filters object to send to backend
+  // Build filters object for API
   const filters: Record<string, string[]> = {};
   this.fields.forEach(f => {
     if (f.value.length > 0) {
@@ -31,20 +23,9 @@ updateResults() {
   });
 
   // Call service
-  this.proxyService.getResults(filters).subscribe({
+  this.filterService.getResults(filters).subscribe({
     next: (res: any) => {
-      console.log('API returned:', res);
-
-      // Map API response to table rows
-      this.results = res.uniquValues.map((val: string) => ({
-        basket_name: val,           // adjust according to your API keys
-        factor_description: '',     // fill if API provides
-        measure: '',                // fill if API provides
-        unique: res.matchcount,
-        constant: res.universecount,
-        object_id: val
-      }));
-
+      this.results = res; // assuming API returns array of rows
       this.selectedRows.clear();
       this.selectAllChecked = false;
 
@@ -54,14 +35,12 @@ updateResults() {
           verticalPosition: 'top'
         });
       }
+
+      console.log('Filtered results:', this.results);
     },
     error: (err) => {
-      console.error('Error fetching results:', err);
-      this.snackBar.open('Failed to fetch results', 'Close', {
-        duration: 3000,
-        verticalPosition: 'top'
-      });
+      console.error('Error fetching results', err);
+      this.snackBar.open('Error fetching results', 'Close', { duration: 3000 });
     }
   });
 }
-private proxyService: ProxyService
