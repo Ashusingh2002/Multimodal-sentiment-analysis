@@ -1,15 +1,14 @@
 valueTooltips?: Record<string, string>;
-field.valueTooltips = {}; // init
-
-field.values.forEach(v => {
-  const basketFilter = filters['basket_name'];
-  if (basketFilter) {
-    const baskets = basketFilter.split(',');
-    field.valueTooltips![v] = `Available for: ${baskets.join(', ')}`;
-  } else {
-    field.valueTooltips![v] = 'Available';
+Object.values(filters).forEach((parentVals) => {
+  if (typeof parentVals === 'string') {
+    parentVals.split(',').forEach(p => sources[v].add(p));
+  } else if (parentVals === true) {
+    sources[v].add('Raw');
+  } else if (parentVals === false) {
+    // ignore
   }
 });
+
 
 <mat-option *ngFor="let val of field.values"
             [value]="val"
