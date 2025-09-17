@@ -1,92 +1,72 @@
-// Map UI field labels → API parameter keys
-const fieldToApiParam: Record<string, string | null> = {
+fieldToApiParam: Record<string, string | null> = {
   'Basket_Name': 'basket_ticker',
   'Factor_Description': 'factor_code',
   'Factor_name': 'factor_name',
   'Factor_group_name': 'factor_group_name',
   'Basket_Region': 'basket_region',
-  'Measure': null // special handling
+  'Measure': null // static Raw/Std
 };
-loadDropdownValues(field: any) {
-  // Optional: don’t reload if already fetched
-  if (field.values && field.values.length > 0) return;
+@Injectable({ providedIn: 'root' })
+export class FilterService {
+  constructor(private http: HttpClient) {}
 
-  this.apiService.getDropdownOptions(field.parameter).subscribe((res: string[]) => {
-    field.values = res;
+  // Always generic — pass field + filters
+  getDropdownValues(fieldParam: string, filters: Record<string, string[]>): Observable<string[]> {
+    let params = new HttpParams();
+    Object.keys(filters).forEach(key => {
+      filters[key].forEach(v => {
+        params = params.append(key, v);
+      });
+    });
+
+    return this.http.get<string[]>(`/api/unique/${fieldParam}`, { params });
+  }
+}
+fetchDropdownValues(field: Field) {
+  const apiParam = this.fieldToApiParam[field.name];
+  if (!apiParam) return;
+
+  // Build current selected filters (exclude current field itself)
+  const filters: Record<string, string[]> = {};
+  this.fields.forEach(f => {
+    const paramKey = this.fieldToApiParam[f.name];
+    if (paramKey && f.value.length > 0 && f.name !== field.name) {
+      filters[paramKey] = f.value;
+    }
+  });
+
+  this.filterService.getDropdownValues(apiParam, filters).subscribe(values => {
+    field.values = values;
   });
 }
+addField(selectedName: string) {
+  const exists = this.fields.find(f => f.name === selectedName);
+  if (exists) return;
 
-addValue(field: any, value: string) {
-  if (value && !field.value.includes(value)) {
-    field.value.push(value);
-  }
-  field.searchText = ''; // clear input after select
+  const newField: Field = {
+    name: selectedName,
+    value: [],
+    unique: 0,
+    constant: 0,
+    values: [],
+    checked: false,
+    searchText: ''
+  };
+
+  this.fields.push(newField);
+
+  // Fetch values from API
+  this.fetchDropdownValues(newField);
 }
-
-addFromInput(event: any, field: any) {
-  const inputValue = (event.value || '').trim();
-  if (inputValue && !field.value.includes(inputValue)) {
-    field.value.push(inputValue);
-  }
-  event.chipInput!.clear();
-  field.searchText = '';
-}
-
-removeValue(field: any, val: string) {
-  const index = field.value.indexOf(val);
-  if (index >= 0) field.value.splice(index, 1);
-}
-<mat-chip-grid #chipList>
-  <mat-chip *ngFor="let val of field.value" removable (removed)="removeValue(field, val)">
-    {{ val }}
-    <button matChipRemove><mat-icon>cancel</mat-icon></button>
-  </mat-chip>
-
-  <input
-    #chipInput
-    placeholder="Type to search..."
-    [matChipInputFor]="chipList"
-    [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
-    [matAutocomplete]="auto"
-    [(ngModel)]="field.searchText"
-    (matChipInputTokenEnd)="addFromInput($event, field)"
-    (focus)="loadDropdownValues(field)"  <!-- 👈 call API when user focuses -->
-  />
-</mat-chip-grid>
-
-<mat-autocomplete
-  #auto="matAutocomplete"
-  (optionSelected)="addValue(field, $event.option.value)">
+<input
+  #chipInput
+  placeholder="Type to search..."
+  [matAutocomplete]="auto"
+  [(ngModel)]="field.searchText"
+  (focus)="fetchDropdownValues(field)"
+/>
+<mat-autocomplete #auto="matAutocomplete" (optionSelected)="addValue(field, $event.option.value)">
   <mat-option *ngFor="let option of field.values" [value]="option">
     {{ option }}
   </mat-option>
 </mat-autocomplete>
-
-ngOnInit() {
-    // Load basket names initially
-    this.filterService.getDropdownValues('basket_ticker', {})
-      .subscribe(values => {
-        const basketField = this.fields.find(f => f.name === 'Basket_Name');
-        if (basketField) basketField.values = values;
-      });
-  }
-
-  // Load values dynamically when a dropdown is opened for the first time
-  loadDropdownValues(field: Field) {
-    const apiParam = fieldToApiParam[field.name];
-    if (!apiParam) return; // skip Measure
-
-    // Build current filter state (excluding the current field)
-    const filters: Record<string, string[]> = {};
-    this.fields.forEach(f => {
-      const paramKey = fieldToApiParam[f.name];
-      if (f.name !== field.name && paramKey && f.value.length > 0) {
-        filters[paramKey] = f.value; // 👈 use mapped key here
-      }
-    });
-
-    this.filterService.getDropdownValues(apiParam, filters)
-      .subscribe(values => {
-        field.values = values;
-      });
-  }
