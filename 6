@@ -1,20 +1,59 @@
-getTooltip(field: Field, value: string): string {
-  // Only compute for fields that map to JSON keys
-  const jsonKey = this.fieldToJsonKey[field.name];
-  if (!jsonKey) return '';
+updateResults() {
+  const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
+  const missing = mandatoryFields.filter(f => {
+    const field = this.fields.find(x => x.name === f);
+    return !field || field.value.length === 0;
+  });
 
-  // Find all matching entries in JSON
-  const matchingEntries = this.entries.filter(e => e[jsonKey] === value);
+  if (missing.length > 0) {
+    this.snackBar.open(
+      'Please select at least one value for all mandatory fields',
+      'Close',
+      { duration: 3000, verticalPosition: 'top' }
+    );
+    return;
+  }
 
-  // Collect Basket_Name(s)
-  const baskets = [...new Set(matchingEntries.map(e => e['basket_name']))];
+  // Map UI field names → backend keys
+  const fieldToBackendKey: Record<string, string> = {
+    'Basket_Name': 'basket_name',
+    'Factor_Description': 'factor_description',
+    'Factor_name': 'factor_name',
+    'Factor_group_name': 'factor_group_name',
+    'Basket_Region': 'basket_region',
+    'Measure': 'measure' // or null if backend handles it separately
+  };
 
-  return baskets.length > 0 ? `Basket(s): ${baskets.join(', ')}` : '';
+  // Build filters object for API
+  const filters: Record<string, string[]> = {};
+  this.fields.forEach(f => {
+    const backendKey = fieldToBackendKey[f.name];
+    if (backendKey && f.value.length > 0) {
+      filters[backendKey] = f.value; // send backend keys
+    }
+  });
+
+  console.log('Filters sent to API:', filters);
+
+  // Call service
+  this.filterService.getResults(filters).subscribe({
+    next: (res: any) => {
+      this.results = res; // API returns array of rows
+      this.selectedRows.clear();
+      this.selectAllChecked = false;
+
+      if (this.results.length === 0) {
+        this.snackBar.open('No matching entries found', 'Close', {
+          duration: 3000,
+          verticalPosition: 'top'
+        });
+      }
+
+      console.log('Filtered results:', this.results);
+    },
+    error: (err) => {
+      console.error('Error fetching results', err);
+      this.snackBar.open('Error fetching results', 'Close', { duration: 3000 });
+    }
+  });
 }
-<mat-chip *ngFor="let val of field.value" 
-          [matTooltip]="getTooltip(field, val)" 
-          removable 
-          (removed)="removeValue(field, val)">
-  {{ val }}
-  <button matChipRemove><mat-icon>cancel</mat-icon></button>
-</mat-chip>
