@@ -1,18 +1,14 @@
-// Add this inside your subscribe next block, after you set field.values
-field.valueTooltips = {}; // initialize
-
-field.values.forEach(val => {
-  const sources: string[] = [];
-
-  Object.keys(filters).forEach(fKey => {
-    const filterVal = filters[fKey];
-    if (filterVal && typeof filterVal === 'string') {
-      // Only add if this dropdown contains the current value
-      if (filterVal.split(',').includes(val)) {
-        sources.push(fKey);
-      }
-    }
-  });
-
-  field.valueTooltips![val] = sources.length ? sources.join(', ') : 'Available';
+valueTooltips?: Record<string, string>; field.valueTooltips = {}; // ✅ initialize dictionary
+field.values.forEach(v => {
+  if (filters['basket_name']) {
+    const baskets = filters['basket_name'].split(',');
+    field.valueTooltips![v] = `Available for: ${baskets.join(', ')}`;
+  } else {
+    field.valueTooltips![v] = 'Available';
+  }
 });
+<mat-option *ngFor="let val of field.values"
+            [value]="val"
+            [matTooltip]="field.valueTooltips?.[val]">
+  {{ val }}
+</mat-option>
