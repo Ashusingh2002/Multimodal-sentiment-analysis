@@ -61,3 +61,32 @@ removeValue(field: any, val: string) {
     {{ option }}
   </mat-option>
 </mat-autocomplete>
+
+ngOnInit() {
+    // Load basket names initially
+    this.filterService.getDropdownValues('basket_ticker', {})
+      .subscribe(values => {
+        const basketField = this.fields.find(f => f.name === 'Basket_Name');
+        if (basketField) basketField.values = values;
+      });
+  }
+
+  // Load values dynamically when a dropdown is opened for the first time
+  loadDropdownValues(field: Field) {
+    const apiParam = fieldToApiParam[field.name];
+    if (!apiParam) return; // skip Measure
+
+    // Build current filter state (excluding the current field)
+    const filters: Record<string, string[]> = {};
+    this.fields.forEach(f => {
+      const paramKey = fieldToApiParam[f.name];
+      if (f.name !== field.name && paramKey && f.value.length > 0) {
+        filters[paramKey] = f.value; // 👈 use mapped key here
+      }
+    });
+
+    this.filterService.getDropdownValues(apiParam, filters)
+      .subscribe(values => {
+        field.values = values;
+      });
+  }
