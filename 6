@@ -1,12 +1,16 @@
-valueTooltips?: Record<string, string>; field.valueTooltips = {}; // ✅ initialize dictionary
+valueTooltips?: Record<string, string>;
+field.valueTooltips = {}; // init
+
 field.values.forEach(v => {
-  if (filters['basket_name']) {
-    const baskets = filters['basket_name'].split(',');
+  const basketFilter = filters['basket_name'];
+  if (basketFilter) {
+    const baskets = basketFilter.split(',');
     field.valueTooltips![v] = `Available for: ${baskets.join(', ')}`;
   } else {
     field.valueTooltips![v] = 'Available';
   }
 });
+
 <mat-option *ngFor="let val of field.values"
             [value]="val"
             [matTooltip]="field.valueTooltips?.[val]">
