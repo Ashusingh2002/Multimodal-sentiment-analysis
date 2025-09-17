@@ -34,3 +34,5 @@ export interface DropdownResponse {
   matchCount: number;
   universeCount: number;
 }
+field.values = (res.uniqueValues ?? []).filter(v => v && v.trim() !== '');
+
