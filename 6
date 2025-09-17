@@ -1,17 +1,49 @@
-filterOptions(field: Field): string[] {
-  const search = (field.searchText || '').toLowerCase();
+onFieldValueChange(field: Field) {
+  if (!field.value || field.value.length === 0) {
+    // Reset if nothing selected
+    field.unique = 0;
+    field.constant = 0;
+    return;
+  }
 
-  return (field.values || [])
-    .filter(opt => !field.value.includes(opt)) // exclude already selected
-    .filter(opt => opt.toLowerCase().includes(search)) // keep matches
-    .sort((a, b) => {
-      const aIndex = a.toLowerCase().indexOf(search);
-      const bIndex = b.toLowerCase().indexOf(search);
+  // Build API params:
+  const params: any = {};
 
-      // First: prioritize matches at the start
-      if (aIndex !== bIndex) return aIndex - bIndex;
+  // Include all currently selected dropdowns
+  this.fields.forEach(f => {
+    if (f.value.length > 0) {
+      params[f.name.toLowerCase()] = f.value.join(',');
+    }
+  });
 
-      // Second: shorter strings come first
-      return a.length - b.length;
-    });
+  // Include field name and its selected values explicitly
+  params['fieldName'] = field.name;
+  params['fieldValues'] = field.value.join(',');
+
+  // Call API
+  this.http.get<any>('http://your-api-url', { params }).subscribe({
+    next: (res) => {
+      // Update unique and constant from API response
+      field.unique = res.unique ?? 0;
+      field.constant = res.constant ?? 0;
+    },
+    error: () => {
+      field.unique = 0;
+      field.constant = 0;
+      this.snackBar.open('Failed to fetch field values', 'Close', {
+        duration: 3000,
+        verticalPosition: 'top'
+      });
+    }
+  });
+}
+<mat-select [(ngModel)]="field.value" (selectionChange)="onFieldValueChange(field)" multiple>
+  <mat-option *ngFor="let val of field.values" [value]="val">{{ val }}</mat-option>
+</mat-select>
+addValue(field: Field, value: string) {
+  if (value && !field.value.includes(value)) {
+    field.value.push(value);
+    field.searchText = '';
+    this.onFieldValueChange(field); // trigger API fetch
+  }
 }
