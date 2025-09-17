@@ -1,7 +1,15 @@
-filterOptions(field: any): string[] {
-  const search = (field.searchText || '').toLowerCase();
+const explodedResults: any[] = [];
 
-  return (field.values || [])
-    .filter(opt => !field.value.includes(opt)) // remove already selected
-    .filter(opt => opt.toLowerCase().includes(search)); // apply search filter
-}
+this.results.forEach((row: any) => {
+  if (row.is_raw_available) {
+    explodedResults.push({ ...row, measure: 'Raw' });
+  }
+  if (row.is_std_available) {
+    explodedResults.push({ ...row, measure: 'Std' });
+  }
+});
+
+// Replace results with exploded version
+this.results = explodedResults;
+
+console.log('Results after exploding measures:', this.results);
