@@ -1,35 +1,28 @@
-  if (field.name === 'Measure') {
-    const measureValues: string[] = [];
+ if (field.name === 'Measure') {
+    const measureField = this.fields.find(f => f.name === 'Measure');
+    const measureFilters: Record<string, boolean> = { ...filters };
 
-    // Call API for is_raw_available
-    this.filterService.getDropdownValues('is_raw_available', filters).subscribe({
+    if (measureField?.value.includes('Raw')) measureFilters['is_raw_available'] = true;
+    if (measureField?.value.includes('Std')) measureFilters['is_std_available'] = true;
+
+    this.filterService.getDropdownValues('measure', measureFilters).subscribe({
       next: (res) => {
-        if (res.uniqueValues && res.uniqueValues.includes('true')) {
-          measureValues.push('Raw');
-        }
+        const updatedValues: string[] = [];
 
-        // Call API for is_std_available
-        this.filterService.getDropdownValues('is_std_available', filters).subscribe({
-          next: (res2) => {
-            if (res2.uniqueValues && res2.uniqueValues.includes('true')) {
-              measureValues.push('Std');
-            }
+        if (res.uniqueValues?.includes('is_raw_available_true')) updatedValues.push('Raw');
+        if (res.uniqueValues?.includes('is_std_available_true')) updatedValues.push('Std');
 
-            // Populate Measure field values
-            field.values = measureValues;
-
-            // Remove any previously selected value that is no longer available
-            field.value = field.value.filter(v => field.values.includes(v));
-          },
-          error: () => {
-            this.snackBar.open(`API call failed for Measure (Std)`, 'Close', { duration: 3000 });
-          }
-        });
+        field.values = updatedValues;
+        field.unique = res.unique ?? 0;
+        field.constant = res.constant ?? 0;
       },
       error: () => {
-        this.snackBar.open(`API call failed for Measure (Raw)`, 'Close', { duration: 3000 });
+        field.values = [];
+        field.unique = 0;
+        field.constant = 0;
+        this.snackBar.open(`API call failed for Measure`, 'Close', { duration: 3000 });
       }
     });
 
-    return; // stop normal logic
+    return; // skip normal logic
   }
