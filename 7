@@ -14,18 +14,31 @@ updateResults() {
     return;
   }
 
+  // Map UI field names → backend keys
+  const fieldToBackendKey: Record<string, string> = {
+    'Basket_Name': 'basket_name',
+    'Factor_Description': 'factor_description',
+    'Factor_name': 'factor_name',
+    'Factor_group_name': 'factor_group_name',
+    'Basket_Region': 'basket_region',
+    'Measure': 'measure' // or null if backend handles it separately
+  };
+
   // Build filters object for API
   const filters: Record<string, string[]> = {};
   this.fields.forEach(f => {
-    if (f.value.length > 0) {
-      filters[f.name] = f.value;
+    const backendKey = fieldToBackendKey[f.name];
+    if (backendKey && f.value.length > 0) {
+      filters[backendKey] = f.value; // send backend keys
     }
   });
+
+  console.log('Filters sent to API:', filters);
 
   // Call service
   this.filterService.getResults(filters).subscribe({
     next: (res: any) => {
-      this.results = res; // assuming API returns array of rows
+      this.results = res; // API returns array of rows
       this.selectedRows.clear();
       this.selectAllChecked = false;
 
