@@ -1,15 +1,17 @@
-const explodedResults: any[] = [];
+filterOptions(field: Field): string[] {
+  const search = (field.searchText || '').toLowerCase();
 
-this.results.forEach((row: any) => {
-  if (row.is_raw_available) {
-    explodedResults.push({ ...row, measure: 'Raw' });
-  }
-  if (row.is_std_available) {
-    explodedResults.push({ ...row, measure: 'Std' });
-  }
-});
+  return (field.values || [])
+    .filter(opt => !field.value.includes(opt)) // exclude already selected
+    .filter(opt => opt.toLowerCase().includes(search)) // keep matches
+    .sort((a, b) => {
+      const aIndex = a.toLowerCase().indexOf(search);
+      const bIndex = b.toLowerCase().indexOf(search);
 
-// Replace results with exploded version
-this.results = explodedResults;
+      // First: prioritize matches at the start
+      if (aIndex !== bIndex) return aIndex - bIndex;
 
-console.log('Results after exploding measures:', this.results);
+      // Second: shorter strings come first
+      return a.length - b.length;
+    });
+}
