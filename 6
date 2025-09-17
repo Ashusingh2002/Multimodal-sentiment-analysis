@@ -1,49 +1,39 @@
-onFieldValueChange(field: Field) {
+updateFieldUniqueConstant(field: Field) {
   if (!field.value || field.value.length === 0) {
-    // Reset if nothing selected
     field.unique = 0;
     field.constant = 0;
     return;
   }
 
-  // Build API params:
-  const params: any = {};
-
-  // Include all currently selected dropdowns
+  // Build selected fields object for API
+  const selectedFields: Record<string, string[]> = {};
   this.fields.forEach(f => {
-    if (f.value.length > 0) {
-      params[f.name.toLowerCase()] = f.value.join(',');
-    }
+    if (f.value.length > 0) selectedFields[f.name] = f.value;
   });
 
-  // Include field name and its selected values explicitly
-  params['fieldName'] = field.name;
-  params['fieldValues'] = field.value.join(',');
-
-  // Call API
-  this.http.get<any>('http://your-api-url', { params }).subscribe({
+  this.fieldService.fetchFieldData(field.name, field.value, selectedFields).subscribe({
     next: (res) => {
-      // Update unique and constant from API response
       field.unique = res.unique ?? 0;
       field.constant = res.constant ?? 0;
+      console.log('API response for field', field.name, res);
     },
     error: () => {
       field.unique = 0;
       field.constant = 0;
-      this.snackBar.open('Failed to fetch field values', 'Close', {
-        duration: 3000,
-        verticalPosition: 'top'
-      });
+      this.snackBar.open('API call failed for field ' + field.name, 'Close', { duration: 3000 });
     }
   });
 }
-<mat-select [(ngModel)]="field.value" (selectionChange)="onFieldValueChange(field)" multiple>
-  <mat-option *ngFor="let val of field.values" [value]="val">{{ val }}</mat-option>
-</mat-select>
-addValue(field: Field, value: string) {
-  if (value && !field.value.includes(value)) {
-    field.value.push(value);
-    field.searchText = '';
-    this.onFieldValueChange(field); // trigger API fetch
-  }
-}
+fetchFieldData(fieldName: string, fieldValues: string[], selectedFields: Record<string, string[]>): Observable<any> {
+    let params = new HttpParams()
+      .set('fieldName', fieldName)
+      .set('fieldValues', fieldValues.join(','));
+
+    Object.keys(selectedFields).forEach(key => {
+      if (selectedFields[key].length) {
+        params = params.set(key.toLowerCase(), selectedFields[key].join(','));
+      }
+    });
+
+    return this.http.get<any>(this.apiUrl, { params });
+  }    this.updateFieldUniqueConstant(field);
