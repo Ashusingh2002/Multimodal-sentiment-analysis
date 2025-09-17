@@ -1,37 +1,60 @@
-FetchDropdownValues(field: Field) {
-  const apiParam = this.fieldToApiParam[field.name];
-  if (!apiParam) return;
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
 
-  // Build filters for all other fields
-  const filters: Record<string, string> = {};
-  this.fields.forEach(f => {
-    const paramKey = this.fieldToApiParam[f.name];
-    if (paramKey && f.value.length > 0 && f.name !== field.name) {
-      filters[paramKey] = f.value.join(','); // ✅ comma-separated
-    }
-  });
+@Injectable({
+  providedIn: 'root'
+})
+export class FilterService {
+  constructor(private http: HttpClient) {}
 
-  // Handle Measure mapping to booleans
-  const measureField = this.fields.find(f => f.name === 'Measure');
-  if (measureField?.value.length) {
-    if (measureField.value.includes('Raw')) filters['is_raw_available'] = 'true';
-    if (measureField.value.includes('Std')) filters['is_std_available'] = 'true';
+  /**
+   * Fetch dropdown values for a field
+   * @param fieldApiParam Backend parameter corresponding to this field
+   * @param filters Object containing other selected field filters
+   *                keys: string (backend param), values: string | boolean
+   */
+  getDropdownValues(fieldApiParam: string, filters: Record<string, string | boolean>): Observable<any> {
+    let params = new HttpParams();
+
+    Object.keys(filters).forEach(key => {
+      const value = filters[key];
+      if (value !== undefined && value !== null) {
+        params = params.set(key, value.toString()); // convert boolean to string if needed
+      }
+    });
+
+    // Example API: /api/dropdown/<fieldApiParam>?otherFilters...
+    return this.http.get<any>(`http://your-backend-url/api/dropdown/${fieldApiParam}`, { params });
   }
+}
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
 
-  this.filterService.getDropdownValues(apiParam, filters).subscribe({
-    next: (res) => {
-      console.log(`API response for ${field.name}:`, res);
+@Injectable({
+  providedIn: 'root'
+})
+export class FilterService {
+  constructor(private http: HttpClient) {}
 
-      // Populate dropdown options
-      field.values = res.uniqueValues ?? [];
+  /**
+   * Fetch dropdown values for a field
+   * @param fieldApiParam Backend parameter corresponding to this field
+   * @param filters Object containing other selected field filters
+   *                keys: string (backend param), values: string | boolean
+   */
+  getDropdownValues(fieldApiParam: string, filters: Record<string, string | boolean>): Observable<any> {
+    let params = new HttpParams();
 
-      // Optional: remove any previously selected value that is no longer available
-      field.value = field.value.filter(v => field.values.includes(v));
-    },
-    error: () => {
-      field.values = [];
-      field.value = [];
-      this.snackBar.open(`API call failed for field ${field.name}`, 'Close', { duration: 3000 });
-    }
-  });
+    Object.keys(filters).forEach(key => {
+      const value = filters[key];
+      if (value !== undefined && value !== null) {
+        params = params.set(key, value.toString()); // convert boolean to string if needed
+      }
+    });
+
+    // Example API: /api/dropdown/<fieldApiParam>?otherFilters...
+    return this.http.get<any>(`http://your-backend-url/api/dropdown/${fieldApiParam}`, { params });
+  }
 }
