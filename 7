@@ -1,17 +1,4 @@
-fieldToApiParam: Record<string, string | null> = {
-  'Basket_Name': 'basket_ticker',
-  'Factor_Description': 'factor_code',
-  'Factor_name': 'factor_name',
-  'Factor_group_name': 'factor_group_name',
-  'Basket_Region': 'basket_region',
-  'Measure': null // static Raw/Std
-};
-@Injectable({ providedIn: 'root' })
-export class FilterService {
-  constructor(private http: HttpClient) {}
-
-  // Always generic — pass field + filters
-  getDropdownValues(fieldParam: string, filters: Record<string, string[]>): Observable<string[]> {
+  getDropdownValues(fieldParam: string, filters: Record<string, string[]>): Observable<DropdownResponse> {
     let params = new HttpParams();
     Object.keys(filters).forEach(key => {
       filters[key].forEach(v => {
@@ -19,14 +6,13 @@ export class FilterService {
       });
     });
 
-    return this.http.get<string[]>(`/api/unique/${fieldParam}`, { params });
+    // 👇 now typed to DropdownResponse instead of string[]
+    return this.http.get<DropdownResponse>(`/api/unique/${fieldParam}`, { params });
   }
-}
-fetchDropdownValues(field: Field) {
+  fetchDropdownValues(field: Field) {
   const apiParam = this.fieldToApiParam[field.name];
   if (!apiParam) return;
 
-  // Build current selected filters (exclude current field itself)
   const filters: Record<string, string[]> = {};
   this.fields.forEach(f => {
     const paramKey = this.fieldToApiParam[f.name];
@@ -35,38 +21,11 @@ fetchDropdownValues(field: Field) {
     }
   });
 
-  this.filterService.getDropdownValues(apiParam, filters).subscribe(values => {
-    field.values = values;
+  this.filterService.getDropdownValues(apiParam, filters).subscribe(res => {
+    console.log(`API response for ${field.name}:`, res);
+
+    field.values = res.uniqueValues ?? [];   // dropdown options
+    field.unique = res.matchCount ?? 0;      // match count
+    field.constant = res.universeCount ?? 0; // universe count
   });
 }
-addField(selectedName: string) {
-  const exists = this.fields.find(f => f.name === selectedName);
-  if (exists) return;
-
-  const newField: Field = {
-    name: selectedName,
-    value: [],
-    unique: 0,
-    constant: 0,
-    values: [],
-    checked: false,
-    searchText: ''
-  };
-
-  this.fields.push(newField);
-
-  // Fetch values from API
-  this.fetchDropdownValues(newField);
-}
-<input
-  #chipInput
-  placeholder="Type to search..."
-  [matAutocomplete]="auto"
-  [(ngModel)]="field.searchText"
-  (focus)="fetchDropdownValues(field)"
-/>
-<mat-autocomplete #auto="matAutocomplete" (optionSelected)="addValue(field, $event.option.value)">
-  <mat-option *ngFor="let option of field.values" [value]="option">
-    {{ option }}
-  </mat-option>
-</mat-autocomplete>
