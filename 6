@@ -1,9 +1,6 @@
-Object.values(filters).forEach((parentVals: string | boolean) => {
-  if (typeof parentVals === 'string') {
-    parentVals.split(',').forEach((p: string) => sources[v].add(p));
-  } else if (parentVals === true) {
-    sources[v].add('Raw');   // or Std depending on context
-  } else if (parentVals === false) {
-    // Do nothing if false
-  }
-});
+     field['valueTooltips'] = {};
+      field.values.forEach(val => {
+        field['valueTooltips'][val] = Object.keys(filters)
+          .filter(fKey => filters[fKey].split(',').includes(val))
+          .join(', ') || 'Available'; // fallback text if no parent matches
+      });
