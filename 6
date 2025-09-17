@@ -1,43 +1,35 @@
-updateFieldUniqueConstant(field: Field) {
-  if (!field.value || field.value.length === 0) {
-    field.unique = 0;
-    field.constant = 0;
-    return;
+  if (field.name === 'Measure') {
+    const measureValues: string[] = [];
+
+    // Call API for is_raw_available
+    this.filterService.getDropdownValues('is_raw_available', filters).subscribe({
+      next: (res) => {
+        if (res.uniqueValues && res.uniqueValues.includes('true')) {
+          measureValues.push('Raw');
+        }
+
+        // Call API for is_std_available
+        this.filterService.getDropdownValues('is_std_available', filters).subscribe({
+          next: (res2) => {
+            if (res2.uniqueValues && res2.uniqueValues.includes('true')) {
+              measureValues.push('Std');
+            }
+
+            // Populate Measure field values
+            field.values = measureValues;
+
+            // Remove any previously selected value that is no longer available
+            field.value = field.value.filter(v => field.values.includes(v));
+          },
+          error: () => {
+            this.snackBar.open(`API call failed for Measure (Std)`, 'Close', { duration: 3000 });
+          }
+        });
+      },
+      error: () => {
+        this.snackBar.open(`API call failed for Measure (Raw)`, 'Close', { duration: 3000 });
+      }
+    });
+
+    return; // stop normal logic
   }
-
-  const apiParam = this.fieldToApiParam[field.name];
-  if (!apiParam) return;
-
-  // Build filters for all other fields (exclude the current field)
-  const filters: Record<string, string | boolean> = {};
-  this.fields.forEach(f => {
-    const paramKey = this.fieldToApiParam[f.name];
-    if (paramKey && f.value.length > 0 && f.name !== field.name) {
-      filters[paramKey] = f.value.join(',');
-    }
-  });
-
-  // Include selected values of the current field itself in a separate param
-  filters[apiParam] = field.value.join(',');
-
-  // Handle Measure mapping to booleans
-  const measureField = this.fields.find(f => f.name === 'Measure');
-  if (measureField?.value.length) {
-    filters['is_raw_available'] = measureField.value.includes('Raw');
-    filters['is_std_available'] = measureField.value.includes('Std');
-  }
-
-  // API call
-  this.filterService.getDropdownValues(apiParam, filters).subscribe({
-    next: (res) => {
-      console.log(`API response for unique/constant of ${field.name}:`, res);
-      field.unique = res.unique ?? 0;
-      field.constant = res.constant ?? 0;
-    },
-    error: () => {
-      field.unique = 0;
-      field.constant = 0;
-      this.snackBar.open(`API call failed for field ${field.name}`, 'Close', { duration: 3000 });
-    }
-  });
-}
