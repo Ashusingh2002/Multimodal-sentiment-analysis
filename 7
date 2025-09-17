@@ -1,63 +1,63 @@
-import { FilterService } from '../services/filter.service';
+// Map UI field labels → API parameter keys
+const fieldToApiParam: Record<string, string | null> = {
+  'Basket_Name': 'basket_ticker',
+  'Factor_Description': 'factor_code',
+  'Factor_name': 'factor_name',
+  'Factor_group_name': 'factor_group_name',
+  'Basket_Region': 'basket_region',
+  'Measure': null // special handling
+};
+loadDropdownValues(field: any) {
+  // Optional: don’t reload if already fetched
+  if (field.values && field.values.length > 0) return;
 
-export class BaseEditorComponent {
-  constructor(
-    private snackBar: MatSnackBar,
-    private dialog: MatDialog,
-    private filterService: FilterService
-  ) {}
-
-  ngOnInit() {
-    // Load basket names initially
-    this.filterService.getBasketNames().subscribe(values => {
-      const basketField = this.fields.find(f => f.name === 'Basket_Name');
-      if (basketField) basketField.values = values;
-    });
-  }
-
-  // Load values dynamically when a dropdown is opened for the first time
-  loadDropdownValues(field: Field) {
-    if (field.name === 'Basket_Name') {
-      // Already loaded in ngOnInit
-      return;
-    }
-
-    // Build current filter state (excluding the current field)
-    const filters: Record<string, string[]> = {};
-    this.fields.forEach(f => {
-      if (f.name !== field.name && f.value.length > 0) {
-        filters[f.name.toLowerCase()] = f.value;
-      }
-    });
-
-    this.filterService.getDropdownValues(field.name.toLowerCase(), filters)
-      .subscribe(values => {
-        field.values = values;
-      });
-  }
+  this.apiService.getDropdownOptions(field.parameter).subscribe((res: string[]) => {
+    field.values = res;
+  });
 }
-import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
 
-@Injectable({ providedIn: 'root' })
-export class FilterService {
-  constructor(private http: HttpClient) {}
-
-  // Always returns basket names
-  getBasketNames(): Observable<string[]> {
-    return this.http.get<string[]>('/api/basket-names');
+addValue(field: any, value: string) {
+  if (value && !field.value.includes(value)) {
+    field.value.push(value);
   }
-
-  // Returns filtered unique values for a dropdown
-  getDropdownValues(field: string, filters: Record<string, string[]>): Observable<string[]> {
-    let params = new HttpParams();
-    Object.keys(filters).forEach(key => {
-      filters[key].forEach(v => {
-        params = params.append(key, v);
-      });
-    });
-
-    return this.http.get<string[]>(`/api/unique/${field}`, { params });
-  }
+  field.searchText = ''; // clear input after select
 }
+
+addFromInput(event: any, field: any) {
+  const inputValue = (event.value || '').trim();
+  if (inputValue && !field.value.includes(inputValue)) {
+    field.value.push(inputValue);
+  }
+  event.chipInput!.clear();
+  field.searchText = '';
+}
+
+removeValue(field: any, val: string) {
+  const index = field.value.indexOf(val);
+  if (index >= 0) field.value.splice(index, 1);
+}
+<mat-chip-grid #chipList>
+  <mat-chip *ngFor="let val of field.value" removable (removed)="removeValue(field, val)">
+    {{ val }}
+    <button matChipRemove><mat-icon>cancel</mat-icon></button>
+  </mat-chip>
+
+  <input
+    #chipInput
+    placeholder="Type to search..."
+    [matChipInputFor]="chipList"
+    [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+    [matAutocomplete]="auto"
+    [(ngModel)]="field.searchText"
+    (matChipInputTokenEnd)="addFromInput($event, field)"
+    (focus)="loadDropdownValues(field)"  <!-- 👈 call API when user focuses -->
+  />
+</mat-chip-grid>
+
+<mat-autocomplete
+  #auto="matAutocomplete"
+  (optionSelected)="addValue(field, $event.option.value)">
+  <mat-option *ngFor="let option of field.values" [value]="option">
+    {{ option }}
+  </mat-option>
+</mat-autocomplete>
