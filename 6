@@ -1,29 +1,29 @@
-// Tracks which parent values caused a child value to appear
-childValueSources: Record<string, Record<string, Set<string>>> = {};
 FetchDropdownValues(field: Field) {
   const apiParam = this.fieldToApiParam[field.name];
   if (!apiParam) return;
 
   // Build filters for all other fields
   const filters: Record<string, string> = {};
-  this.fields.forEach(f => {
+  this.fields.forEach((f: Field) => {
     const paramKey = this.fieldToApiParam[f.name];
     if (paramKey && f.value.length > 0 && f.name !== field.name) {
-      filters[paramKey] = f.value.join(',');
+      filters[paramKey] = f.value.join(','); // ✅ comma-separated
     }
   });
 
   // Handle Measure separately
   if (field.name === 'Measure') {
-    ['is_raw_available', 'is_std_available'].forEach(measureKey => {
-      this.fields.forEach(f => {
-        const paramKey = this.fieldToApiParam[f.name];
-        if (paramKey && f.value.length > 0) {
-          filters[paramKey] = f.value.join(',');
+    ['is_raw_available', 'is_std_available'].forEach((measureKey: string) => {
+      const measureFilters: Record<string, string> = { ...filters };
+
+      this.fields.forEach((f: Field) => {
+        const key = this.fieldToApiParam[f.name];
+        if (key && f.value.length > 0) {
+          measureFilters[key] = f.value.join(',');
         }
       });
 
-      this.filterService.getDropdownValues(measureKey, filters).subscribe(res => {
+      this.filterService.getDropdownValues(measureKey, measureFilters).subscribe((res: any) => {
         const addVal = measureKey === 'is_raw_available' ? 'Raw' : 'Std';
         if (res.uniqueValues?.includes(true)) {
           if (!field.values.includes(addVal)) field.values.push(addVal);
@@ -37,95 +37,53 @@ FetchDropdownValues(field: Field) {
   }
 
   // Normal fields
-  this.filterService.getDropdownValues(apiParam, filters).subscribe({
-    next: (res) => {
-      // Track which parent value caused each child value
-      if (!this.childValueSources[field.name]) this.childValueSources[field.name] = {};
-      const sources = this.childValueSources[field.name];
+  this.filterService.getDropdownValues(apiParam, filters).subscribe((res: any) => {
+    if (!this.childValueSources[field.name]) this.childValueSources[field.name] = {};
+    const sources = this.childValueSources[field.name];
 
-      const newValues = res.uniqueValues ?? [];
-      newValues.forEach(v => {
-        if (!field.values.includes(v)) field.values.push(v);
+    const newValues: string[] = res.uniqueValues ?? [];
+    newValues.forEach((v: string) => {
+      if (!field.values.includes(v)) field.values.push(v);
 
-        if (!sources[v]) sources[v] = new Set();
-        Object.values(filters).forEach(parentVals => {
-          parentVals.split(',').forEach(p => sources[v].add(p));
-        });
+      if (!sources[v]) sources[v] = new Set<string>();
+      Object.values(filters).forEach((parentVals: string) => {
+        parentVals.split(',').forEach((p: string) => sources[v].add(p));
       });
+    });
 
-      // Optional: remove previously selected values no longer valid
-      field.value = field.value.filter(v => field.values.includes(v));
-    },
-    error: () => {
-      field.values = [];
-      field.value = [];
-      this.snackBar.open(`API call failed for field ${field.name}`, 'Close', { duration: 3000 });
-    }
+    // Remove any previously selected value no longer valid
+    field.value = field.value.filter(v => field.values.includes(v));
+  }, () => {
+    field.values = [];
+    field.value = [];
+    this.snackBar.open(`API call failed for field ${field.name}`, 'Close', { duration: 3000 });
   });
 }
-
 onFieldValueAdd(parentField: Field, value: string) {
-  this.fields.forEach(childField => {
+  this.fields.forEach((childField: Field) => {
     if (childField.name === parentField.name) return;
 
     const apiParam = this.fieldToApiParam[childField.name];
     if (!apiParam) return;
 
     const filters: Record<string, string> = {};
-    filters[this.fieldToApiParam[parentField.name]] = value;
+    const parentKey = this.fieldToApiParam[parentField.name];
+    if (!parentKey) return;
 
-    this.filterService.getDropdownValues(apiParam, filters).subscribe(res => {
-      const newValues = res.uniqueValues ?? [];
+    filters[parentKey] = value;
+
+    this.filterService.getDropdownValues(apiParam, filters).subscribe((res: any) => {
+      const newValues: string[] = res.uniqueValues ?? [];
       if (!this.childValueSources[childField.name]) this.childValueSources[childField.name] = {};
       const sources = this.childValueSources[childField.name];
 
-      newValues.forEach(v => {
+      newValues.forEach((v: string) => {
         if (!childField.values.includes(v)) childField.values.push(v);
         if (!childField.value.includes(v)) childField.value.push(v);
 
-        if (!sources[v]) sources[v] = new Set();
+        if (!sources[v]) sources[v] = new Set<string>();
         sources[v].add(value);
       });
     });
   });
 }
-
-onFieldValueRemove(parentField: Field, value: string) {
-  this.fields.forEach(childField => {
-    if (childField.name === parentField.name) return;
-
-    const sources = this.childValueSources[childField.name] || {};
-    Object.keys(sources).forEach(childVal => {
-      sources[childVal].delete(value);
-
-      if (sources[childVal].size === 0) {
-        const idx = childField.value.indexOf(childVal);
-        if (idx >= 0) childField.value.splice(idx, 1);
-        delete sources[childVal];
-      }
-    });
-
-    // Remove from available options if no source left
-    childField.values = [...new Set(childField.values.filter(v => !sources[v] || sources[v].size > 0))];
-  });
-}
-addFromInput(event: MatChipInputEvent, field: Field) {
-  const value = (event.value || '').trim();
-  if (!value) return;
-
-  if (!field.value.includes(value)) {
-    field.value.push(value);
-    field.searchText = '';
-    this.onFieldValueAdd(field, value);
-  }
-  event.chipInput?.clear();
-}
-
-removeValue(field: Field, value: string) {
-  const index = field.value.indexOf(value);
-  if (index >= 0) {
-    field.value.splice(index, 1);
-    this.onFieldValueRemove(field, value);
-  }
-}
-
