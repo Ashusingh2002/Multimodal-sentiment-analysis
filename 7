@@ -1,31 +1,63 @@
-hoveredItem: any = null;
+import { FilterService } from '../services/filter.service';
 
-onMouseEnter(item: any) {
-  this.hoveredItem = item;
-}
-onMouseLeave() {
-  this.hoveredItem = null;
-}
-.custom-tooltip-menu .mat-menu-content {
-  padding: 8px 12px;
-  max-width: 300px;
-  white-space: normal;
-  font-size: 13px;
-}
-.tooltip-panel div {
-  margin-bottom: 4px;
-}
-<!-- Info Icon -->
-<button mat-icon-button [matMenuTriggerFor]="infoMenu">
-  <mat-icon>info</mat-icon>
-</button>
+export class BaseEditorComponent {
+  constructor(
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog,
+    private filterService: FilterService
+  ) {}
 
-<!-- Menu as tooltip -->
-<mat-menu #infoMenu="matMenu" class="custom-tooltip-menu" overlapTrigger="false">
-  <div class="tooltip-panel">
-    <div><strong>Name:</strong> {{ hoveredItem?.name || '-' }}</div>
-    <div><strong>Short Name:</strong> {{ hoveredItem?.shortname || '-' }}</div>
-    <div><strong>Last Updated:</strong> {{ hoveredItem?.lastUpdate || '-' }}</div>
-    <div><strong>Description:</strong> {{ hoveredItem?.description || '-' }}</div>
-  </div>
-</mat-menu>
+  ngOnInit() {
+    // Load basket names initially
+    this.filterService.getBasketNames().subscribe(values => {
+      const basketField = this.fields.find(f => f.name === 'Basket_Name');
+      if (basketField) basketField.values = values;
+    });
+  }
+
+  // Load values dynamically when a dropdown is opened for the first time
+  loadDropdownValues(field: Field) {
+    if (field.name === 'Basket_Name') {
+      // Already loaded in ngOnInit
+      return;
+    }
+
+    // Build current filter state (excluding the current field)
+    const filters: Record<string, string[]> = {};
+    this.fields.forEach(f => {
+      if (f.name !== field.name && f.value.length > 0) {
+        filters[f.name.toLowerCase()] = f.value;
+      }
+    });
+
+    this.filterService.getDropdownValues(field.name.toLowerCase(), filters)
+      .subscribe(values => {
+        field.values = values;
+      });
+  }
+}
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class FilterService {
+  constructor(private http: HttpClient) {}
+
+  // Always returns basket names
+  getBasketNames(): Observable<string[]> {
+    return this.http.get<string[]>('/api/basket-names');
+  }
+
+  // Returns filtered unique values for a dropdown
+  getDropdownValues(field: string, filters: Record<string, string[]>): Observable<string[]> {
+    let params = new HttpParams();
+    Object.keys(filters).forEach(key => {
+      filters[key].forEach(v => {
+        params = params.append(key, v);
+      });
+    });
+
+    return this.http.get<string[]>(`/api/unique/${field}`, { params });
+  }
+}
