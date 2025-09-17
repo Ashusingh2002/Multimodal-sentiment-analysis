@@ -1,9 +1,9 @@
-Object.entries(filters).forEach(([key, val]) => {
-  if (typeof val === 'string') {
-    val.split(',').forEach(v => sources[v].add(v));
-  } else if (key === 'is_raw_available' && val === true) {
-    sources[v].add('Raw');
-  } else if (key === 'is_std_available' && val === true) {
-    sources[v].add('Std');
+Object.values(filters).forEach((parentVals: string | boolean) => {
+  if (typeof parentVals === 'string') {
+    parentVals.split(',').forEach((p: string) => sources[v].add(p));
+  } else if (parentVals === true) {
+    sources[v].add('Raw');   // or Std depending on context
+  } else if (parentVals === false) {
+    // Do nothing if false
   }
 });
