@@ -1,17 +1,10 @@
-valueTooltips?: Record<string, string>;
-Object.values(filters).forEach((parentVals) => {
-  if (typeof parentVals === 'string') {
-    parentVals.split(',').forEach(p => sources[v].add(p));
-  } else if (parentVals === true) {
-    sources[v].add('Raw');
-  } else if (parentVals === false) {
-    // ignore
-  }
-});
-
-
-<mat-option *ngFor="let val of field.values"
-            [value]="val"
-            [matTooltip]="field.valueTooltips?.[val]">
-  {{ val }}
-</mat-option>
+    "api1": {
+      "browserTarget": "your-app-name:build:development",
+      "proxyConfig": "proxy.api1.config.js",
+      "port": 4200
+    },
+    "api2": {
+      "browserTarget": "your-app-name:build:development",
+      "proxyConfig": "proxy.api2.config.js",
+      "port": 4300
+    }
