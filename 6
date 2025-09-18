@@ -1,10 +1,5 @@
-    "api1": {
-      "browserTarget": "your-app-name:build:development",
-      "proxyConfig": "proxy.api1.config.js",
-      "port": 4200
-    },
-    "api2": {
-      "browserTarget": "your-app-name:build:development",
-      "proxyConfig": "proxy.api2.config.js",
-      "port": 4300
-    }
+ngOnInit() {
+  this.form.valueChanges.subscribe(val => {
+    this.updateUniqueAndConstant();  // 🔥 auto on any change
+  });
+}
