@@ -1,5 +1,17 @@
-ngOnInit() {
-  this.form.valueChanges.subscribe(val => {
-    this.updateUniqueAndConstant();  // 🔥 auto on any change
+refreshAllUniqueAndConstant() {
+  // Build apiParams from all fields
+  const apiParams: any = {};
+  this.fields.forEach(f => {
+    if (f.value && f.value.length > 0) {
+      const jsonKey = this.fieldToJsonKey[f.name];
+      if (jsonKey) {
+        apiParams[jsonKey] = f.value;
+      }
+    }
+  });
+
+  // Loop through every field and refresh
+  this.fields.forEach(f => {
+    this.updateUniqueAndConstantForField(f, apiParams);
   });
 }
