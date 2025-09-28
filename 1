@@ -1,202 +1,40 @@
-<div class="factorlab">
-  <h2 mat-dialog-title class="haeding">
-  Base Editor
-  <button mat-icon-button mat-dialog-close style="float:right;">
-    <mat-icon>close</mat-icon>
-  </button>
-</h2>
+.custom-select {
+  position: relative;
+  width: 200px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+}
 
-<div class="main-editor-screen">
+.selected {
+  padding: 8px;
+}
 
-  <!-- Scrollable Criteria Table -->
-  <div class="criteria-table-container" #criteriaContainer>
-    <div class="criteria-table">
-      <!-- Header -->
-      <div class="criteria-header">
-        <span class="col-checkbox"></span>
-        <span class="col-attr">Attribute</span>
-        <span class="col-value">Value</span>
-        <span class="col-unique">Unique</span>
-        <span class="col-const">Constant</span>
-        <span class="col-actions">Actions</span>
-      </div>
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 100;
+}
 
-      <!-- Rows -->
-      <div class="criteria-rows">
-       <div class="criteria-row" *ngFor="let field of fields; let i = index">
-  <mat-checkbox   [checked]="field.checked" class="col-checkbox"   (change)="onCheckboxChange(field, $event)"></mat-checkbox>
+.dropdown-search {
+  width: 90%;
+  padding: 6px;
+  margin: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
 
-  <!-- Attribute as plain text, NOT mat-form-field -->
-  <span class="col-attr">{{ field.name }}</span>
+.option {
+  padding: 8px;
+}
 
-  <!-- Value dropdown, smaller and left-aligned -->
-<mat-form-field class="full-width" appearance="outline"   [class.hide-label]="field.searchText">
-
-
-<mat-chip-grid #chipList>
-  <mat-chip *ngFor="let val of field.value" removable (removed)="removeValue(field, val)">
-    {{ val }}
-    <button matChipRemove><mat-icon>cancel</mat-icon></button>
-  </mat-chip>
-
-<input
-  #chipInput
-  placeholder="Type to search..."
-  [matChipInputFor]="chipList"
-  [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
-  [matAutocomplete]="auto"
-  [(ngModel)]="field.searchText"
-  (matChipInputTokenEnd)="addFromInput($event, field)"
-  (click)="toggleAutocomplete(field, chipInput)"
-/>
-
-</mat-chip-grid>
-
-
-<mat-autocomplete #auto="matAutocomplete" (optionSelected)="addValue(field, $event.option.value)">
-  <mat-option *ngFor="let option of filterOptions(field)" [value]="option">
-    {{ option }}
-  </mat-option>
-</mat-autocomplete>
-
-
-</mat-form-field>
-
-
-
-
-
-
-
-
-
-
-  <div class="col-unique">{{ field.unique }}</div>
-  <div class="col-const">{{ field.constant }}</div>
-
-  <div class="col-actions">
-
-    <button *ngIf="!field.mandatory"
-            mat-icon-button color="warn"
-            (click)="removeField(i)">
-      <mat-icon>delete</mat-icon>
-    </button>
-    <button mat-icon-button color="primary"
-            [matTooltip]="'Info about ' + field.name"
-            matTooltipPosition="above"
-            matTooltipShowDelay="500">
-      <mat-icon>info</mat-icon>
-    </button>
-
-
-  </div>
-
-</div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- Search + Browse -->
-<!-- Browse -->
-<div class="browse">
-  <button mat-stroked-button color="accent" (click)="openBrowse(criteriaDialog)">
-    Browse Attribute
-  </button>
-  <button mat-raised-button color="primary" (click)="updateResults()">
-    Update Results
-  </button>
-
-  <div *ngIf="results.length > 0" class="plot-btn">
-    <button mat-raised-button color="primary" (click)="plotSelected()">
-      Plot Selected
-    </button>
-  </div>
-</div>
-
-</div>
-
-<!-- Popup Criteria Selector -->
-<!-- Popup Criteria Selector -->
-<ng-template #criteriaDialog>
-  <h2 mat-dialog-title>
-    Select Attribute
-    <button mat-icon-button mat-dialog-close class="close-btn">
-      <mat-icon>close</mat-icon>
-    </button>
-  </h2>
-
-  <mat-dialog-content class="criteria-popup">
-    <!-- Single-level menu -->
-    <div class="menu-container">
-      <div *ngFor="let item of menuLevels[0]"
-           (click)="selectItem(item)"
-           (mouseenter)="hoveredItem = item"
-           class="menu-item">
-        {{ item.name }}
-      </div>
-    </div>
-
-    <!-- Info panel -->
-    <div class="info-panel">
-      <div *ngIf="hoveredItem">
-        <div class="info-item"> <strong>Name:</strong> <div>{{ hoveredItem.name || '-' }}</div></div>
-        <div class="info-item"> <strong>Short Name:</strong> <div>{{ hoveredItem.shortname || '-' }}</div></div>
-        <div class="info-item"> <strong>Last Updated:</strong> <div>{{ hoveredItem.lastUpdate  || '-' }}</div></div>
-        <div class="info-item"> <strong>Description:</strong> <div>{{ hoveredItem.description || '-' }}</div></div>
-      </div>
-      <div *ngIf="!hoveredItem">
-        Hover over an item to see details
-      </div>
-    </div>
-  </mat-dialog-content>
-</ng-template>
-
-
-<!-- Results Table -->
-<!-- Results Table -->
-<div *ngIf="results.length > 0" class="results-table-container">
-  <table>
-    <thead>
-      <tr>
-        <th>           
-          <mat-checkbox
-            [checked]="allSelected()"
-            [indeterminate]="someSelected() && !allSelected()"
-            (change)="toggleSelectAll($event.checked)"> </mat-checkbox>
-          Basket Name</th>
-        <th>Factor Description</th>
-        <th>Measure</th>
-        <th>Basket_region</th>
-        <th>Factor_name</th>
-        <th>Factor_group_name</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of results">
-        <!-- Column 1: Checkbox + Basket Name -->
-        <td class="ticker-cell">
-          <mat-checkbox [checked]="selectedRows.has(row.object_id)"
-                        (change)="toggleRowSelection(row.object_id, $event.checked)">
-          </mat-checkbox>
-          <span>{{ row.basket_name || '--'}}</span>
-        </td>
-
-        <!-- Columns 2-5: Attributes -->
-        <td>{{ row.factor_description || '--' }}</td>
-        <td>{{ row.measure || '--' }}</td>
-        <td>{{ row.basket_region || '--' }}</td>
-        <td>{{ row.factor_name|| '--' }}</td>
-
-        <!-- Column 6: Measure -->
-        <td>{{ row.factor_group_name || '--' }}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- Plot Button -->
-
-</div>
-
-
-</div>
+.option:hover {
+  background: #f0f0f0;
+}
