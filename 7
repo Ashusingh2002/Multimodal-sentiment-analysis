@@ -1,59 +1,67 @@
-updateResults() {
-  const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
-  const missing = mandatoryFields.filter(f => {
-    const field = this.fields.find(x => x.name === f);
-    return !field || field.value.length === 0;
-  });
+import { Component, ElementRef, ViewChild } from '@angular/core';
+import { Overlay, OverlayRef, ConnectedPosition, OverlayPositionBuilder } from '@angular/cdk/overlay';
+import { TemplatePortal } from '@angular/cdk/portal';
 
-  if (missing.length > 0) {
-    this.snackBar.open(
-      'Please select at least one value for all mandatory fields',
-      'Close',
-      { duration: 3000, verticalPosition: 'top' }
-    );
-    return;
-  }
+@Component({
+  selector: 'app-dropdown-example',
+  templateUrl: './dropdown-example.component.html',
+  styleUrls: ['./dropdown-example.component.css']
+})
+export class DropdownExampleComponent {
+  @ViewChild('dropdownOrigin') dropdownOrigin!: ElementRef;
+  @ViewChild('dropdownPanel') dropdownPanel!: ElementRef;
 
-  // Map UI field names → backend keys
-  const fieldToBackendKey: Record<string, string> = {
-    'Basket_Name': 'basket_name',
-    'Factor_Description': 'factor_description',
-    'Factor_name': 'factor_name',
-    'Factor_group_name': 'factor_group_name',
-    'Basket_Region': 'basket_region',
-    'Measure': 'measure' // or null if backend handles it separately
-  };
+  private overlayRef!: OverlayRef;
+  isOpen = false;
 
-  // Build filters object for API
-  const filters: Record<string, string[]> = {};
-  this.fields.forEach(f => {
-    const backendKey = fieldToBackendKey[f.name];
-    if (backendKey && f.value.length > 0) {
-      filters[backendKey] = f.value; // send backend keys
+  constructor(
+    private overlay: Overlay,
+    private overlayPositionBuilder: OverlayPositionBuilder
+  ) {}
+
+  toggleDropdown() {
+    if (this.isOpen) {
+      this.overlayRef.dispose();
+      this.isOpen = false;
+      return;
     }
-  });
 
-  console.log('Filters sent to API:', filters);
-
-  // Call service
-  this.filterService.getResults(filters).subscribe({
-    next: (res: any) => {
-      this.results = res; // API returns array of rows
-      this.selectedRows.clear();
-      this.selectAllChecked = false;
-
-      if (this.results.length === 0) {
-        this.snackBar.open('No matching entries found', 'Close', {
-          duration: 3000,
-          verticalPosition: 'top'
-        });
+    const positions: ConnectedPosition[] = [
+      {
+        originX: 'start', originY: 'bottom',
+        overlayX: 'start', overlayY: 'top'
       }
+    ];
 
-      console.log('Filtered results:', this.results);
-    },
-    error: (err) => {
-      console.error('Error fetching results', err);
-      this.snackBar.open('Error fetching results', 'Close', { duration: 3000 });
-    }
-  });
+    this.overlayRef = this.overlay.create({
+      positionStrategy: this.overlayPositionBuilder
+        .flexibleConnectedTo(this.dropdownOrigin)
+        .withPositions(positions),
+      scrollStrategy: this.overlay.scrollStrategies.reposition()
+    });
+
+    this.overlayRef.attach(new TemplatePortal(this.dropdownPanel, null!));
+    this.isOpen = true;
+  }
+}
+<div class="dropdown-container">
+  <button #dropdownOrigin (click)="toggleDropdown()">Open Dropdown</button>
+</div>
+
+<ng-template #dropdownPanel>
+  <div class="dropdown-panel">
+    <div>Option 1</div>
+    <div>Option 2</div>
+    <div>Option 3</div>
+  </div>
+</ng-template>
+.dropdown-container {
+  width: 200px;
+}
+
+.dropdown-panel {
+  background: white;
+  border: 1px solid #ccc;
+  width: 100%; /* inherit parent width */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
