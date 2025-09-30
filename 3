@@ -1,287 +1,238 @@
-// ================================
-// File: src/app/app.module.ts
-// ================================
+```typescript
+// app.module.ts
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
-import { CustomMultiSelectComponent } from './custom-multiselect.component';
 
 @NgModule({
-  declarations: [AppComponent, CustomMultiSelectComponent],
+  declarations: [AppComponent],
   imports: [BrowserModule, FormsModule],
-  bootstrap: [AppComponent]
+  providers: [],
+  bootstrap: [AppComponent],
 })
 export class AppModule {}
+```
 
-
-// ================================
-// File: src/app/custom-multiselect.component.ts
-// (Single dropdown per filter, no textarea, typing filters options, click outside closes)
-// ================================
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Output, ViewChild } from '@angular/core';
-
-@Component({
-  selector: 'app-custom-multiselect',
-  template: `
-  <div class="multi" #root>
-    <div class="input-like" (click)="toggleOpen()" tabindex="0">
-      <span class="chip" *ngFor="let s of displayValues">{{s}} <button class="x" (click)="remove($event,s)">×</button></span>
-      <span *ngIf="hiddenCount>0" class="chip">+{{hiddenCount}} more</span>
-      <input type="text" [(ngModel)]="query" (input)="onQuery()" (keydown)="onKeydown($event)" placeholder="Type to filter/select" />
-      <button class="caret">▾</button>
-    </div>
-
-    <div class="dropdown" *ngIf="open">
-      <div class="options">
-        <label *ngFor="let opt of filteredOptions">
-          <input type="checkbox" [(ngModel)]="selectedMap[opt]" (change)="emitSelected()"/> {{opt}}
-        </label>
-        <div *ngIf="filteredOptions.length===0" class="nores">No options</div>
-      </div>
-    </div>
-  </div>
-  `,
-  styles: [`
-    :host{display:block}
-    .multi { position: relative; font-family: Arial, Helvetica, sans-serif; }
-    .input-like{ min-height:40px; border-bottom:1px solid #cfd8dc; padding:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-    .chip{ background:#e8f5e9; padding:6px 8px; border-radius:16px; font-size:13px; display:inline-flex; align-items:center; }
-    .chip .x{ margin-left:6px; border:none; background:transparent; cursor:pointer; }
-    input[type=text]{ border:none; outline:none; flex:1; min-width:80px; }
-    .dropdown{ position:absolute; z-index:20; left:0; right:0; background:#fff; border:1px solid #e0e0e0; padding:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); max-height:220px; overflow:auto; }
-    .options label{ display:block; padding:4px 6px; cursor:pointer }
-    .nores{ color:#999; padding:8px }
-  `]
-})
-export class CustomMultiSelectComponent implements OnInit{
-  @Input() options: string[] = [];
-  @Input() selected: string[] = [];
-  @Output() selectedChange = new EventEmitter<string[]>();
-
-  @ViewChild('root') root!: ElementRef;
-
-  open = false;
-  query = '';
-  filteredOptions: string[] = [];
-  selectedMap: { [k:string]: boolean } = {};
-
-  ngOnInit(){
-    this.options = Array.from(new Set(this.options));
-    for(const o of this.options){ this.selectedMap[o] = this.selected.includes(o); }
-    this.filteredOptions = this.options.slice();
-  }
-
-  toggleOpen(){ this.open = !this.open; this.updateFilter(); }
-
-  onQuery(){ this.updateFilter(); }
-
-  updateFilter(){
-    const q = (this.query||'').toLowerCase().trim();
-    this.filteredOptions = this.options.filter(o => o.toLowerCase().includes(q));
-  }
-
-  emitSelected(){
-    const list = this.options.filter(o=>this.selectedMap[o]);
-    this.selected = list;
-    this.selectedChange.emit(list);
-  }
-
-  remove(ev:Event, item:string){ ev.stopPropagation(); this.selectedMap[item]=false; this.emitSelected(); }
-
-  onKeydown(e:KeyboardEvent){
-    if(e.key==='Escape'){ this.open=false; }
-    if(e.key==='Enter'){ e.preventDefault(); }
-  }
-
-  get displayValues(){
-    const chosen = this.options.filter(o=>this.selectedMap[o]);
-    return chosen.slice(0,3);
-  }
-  get hiddenCount(){ const total = this.options.filter(o=>this.selectedMap[o]).length; return Math.max(0,total-3); }
-
-  @HostListener('document:click', ['$event'])
-  handleOutsideClick(event: Event){
-    if(!this.root) return;
-    if(!this.root.nativeElement.contains(event.target)) this.open=false;
-  }
-}
-
-
-// ================================
-// File: src/app/app.component.ts
-// Changes: single-row clean layout (no white boxes), table populates on Search, plot controls hidden until table data exists, search uses selections to filter demo data
-// ================================
+```typescript
+// app.component.ts
 import { Component } from '@angular/core';
-
-interface FilterInfo {
-  key: string;
-  label: string;
-  options: string[];
-  selected: string[];
-  matches: number;
-  universe: number;
-}
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  styleUrls: ['./app.component.css'],
 })
-export class AppComponent {
-  filters: FilterInfo[] = [
-    { key: 'basketTicker', label: 'Basket Ticker', options: ['BCRERETL','BASK-USD','ALPHA','BRAVO'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorCode', label: 'Factor Code', options: ['Equity','Macro','Credit','Rate'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorMacro', label: 'Factor Macro', options: ['EU','US','APAC','LATAM'], selected: [], matches: 0, universe: 174432 },
-    { key: 'basketRegion', label: 'Basket Region', options: ['Sentiment','Macro','Micro','News'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorGroup', label: 'Factor Group Name', options: ['Macro','Sector','Style','Growth'], selected: [], matches: 0, universe: 174432 }
-  ];
+export class AppComponent {}
+```
 
-  measure: 'raw'|'std' = 'raw';
+```html
+<!-- app.component.html -->
+<div class="filters-container">
+  <div class="filter-row">
+    <!-- Basket Ticker -->
+    <div class="filter-item">
+      <label>Basket Ticker <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>BCRETL</option>
+        <option>OPT2</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
 
-  // table data will be populated on search
-  tableData: any[] = [];
+    <!-- Factor Code -->
+    <div class="filter-item">
+      <label>Factor Code <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>Equity</option>
+        <option>Macro</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
 
-  // plotting rows
-  plotRangeFrom: number|null = null;
-  plotRangeTo: number|null = null;
-  maxRows = 50;
+    <!-- Factor Macro -->
+    <div class="filter-item">
+      <label>Factor Macro <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>EU</option>
+        <option>US</option>
+        <option>+45 more</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
 
-  // demo dataset (flat list of items with tags to filter by)
-  demoDB = Array.from({length:200}).map((_,i)=>({
-    id:i+1,
-    name:`Item ${i+1}`,
-    basketTicker: ['BCRERETL','BASK-USD','ALPHA','BRAVO'][i%4],
-    factorCode: ['Equity','Macro','Credit','Rate'][i%4],
-    factorMacro: ['EU','US','APAC','LATAM'][i%4],
-    basketRegion: ['Sentiment','Macro','Micro','News'][i%4],
-    factorGroup: ['Macro','Sector','Style','Growth'][i%4],
-    value: (Math.random()*10).toFixed(2)
-  }));
+    <!-- Factor Region -->
+    <div class="filter-item">
+      <label>Factor Region <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>Sentiment</option>
+        <option>Macro</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
 
-  onFilterChange(idx:number, selected:string[]){
-    this.filters[idx].selected = selected;
-    // update live counters crudely
-    const selCount = selected.length||1;
-    this.filters[idx].matches = selCount * Math.floor(10 + Math.random()*80);
-    this.filters[idx].universe = 174432 - selCount * Math.floor(Math.random()*1000);
-  }
+    <!-- Factor Group Name -->
+    <div class="filter-item">
+      <label>Factor Group Name <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>Macro</option>
+        <option>Growth</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
 
-  clearFilter(idx:number){ this.filters[idx].selected = []; this.onFilterChange(idx, []); }
+    <!-- Factor Name -->
+    <div class="filter-item">
+      <label>Factor Name <span class="info">i</span> <span class="delete">⊗</span></label>
+      <select multiple>
+        <option>raw</option>
+        <option>std</option>
+      </select>
+      <div class="counters">237 Matches | 174432 Universe</div>
+    </div>
+  </div>
 
-  infoFilter(idx:number){ alert(`${this.filters[idx].label} — choose from the dropdown. Live matches update.`); }
+  <!-- Measure chips + Search button -->
+  <div class="measure-search">
+    <div class="chips">
+      <span class="chip">raw</span>
+      <span class="chip">std</span>
+    </div>
+    <button class="search-btn">Search</button>
+  </div>
+</div>
 
-  toggleMeasure(m:'raw'|'std'){ this.measure = m; }
+<!-- Table -->
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Checkbox</th>
+        <th>Basket Ticker</th>
+        <th>Factor Code</th>
+        <th>Measure</th>
+        <th>Basket Group Name</th>
+        <th>Factor Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of [1,2,3,4,5,6]">
+        <td><input type="checkbox" /></td>
+        <td>Sample</td>
+        <td>Macro</td>
+        <td>raw</td>
+        <td>Group</td>
+        <td>Factor</td>
+      </tr>
+    </tbody>
+  </table>
 
-  search(){
-    // filter demoDB by selected filters (all selected values across filters are ANDed)
-    let results = this.demoDB.slice();
-    this.filters.forEach(f=>{
-      if(f.selected && f.selected.length>0){
-        results = results.filter(r=> f.selected.includes((r as any)[f.key]));
-      }
-    });
+  <!-- Plot rows -->
+  <div class="plot-rows">
+    Plot Rows: Range
+    <input type="number" value="20" />
+    <input type="number" value="2" />
+    <input type="number" value="30" />
+    <button class="plot-btn">Plot Selected</button>
+  </div>
+</div>
+```
 
-    // enforce max rows
-    if(results.length>this.maxRows) results = results.slice(0,this.maxRows);
-    this.tableData = results;
-
-    // reset plot range when table populated
-    this.plotRangeFrom = null; this.plotRangeTo = null;
-  }
-
-  isTablePopulated(){ return this.tableData && this.tableData.length>0; }
+```css
+/* app.component.css */
+.filters-container {
+  margin: 20px;
 }
 
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
 
-// ================================
-// File: src/app/app.component.html
-// ================================
+.filter-item {
+  display: flex;
+  flex-direction: column;
+}
 
-` + `
-<div class="shell">
-  <h1>Factorlab Filters</h1>
+.filter-item label {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
 
-  <!-- single-row look: filters inline, no white boxed cards -->
-  <div class="filters-inline">
-    <div class="filter-inline" *ngFor="let f of filters; index as i">
-      <div class="label-row">
-        <span class="label">{{f.label}}</span>
-        <span class="icons">
-          <button (click)="infoFilter(i)" title="Info">i</button>
-          <button (click)="clearFilter(i)" title="Clear">⊗</button>
-        </span>
-      </div>
-      <app-custom-multiselect [options]="f.options" [selected]="f.selected" (selectedChange)="onFilterChange(i,$event)"></app-custom-multiselect>
-      <div class="counters"><small>{{f.matches}} Matches | {{f.universe}} Universe</small></div>
-    </div>
+.info {
+  margin-left: 6px;
+  cursor: pointer;
+  color: #007bff;
+}
 
-    <div class="actions-inline">
-      <div class="measures">
-        <button class="measure" [class.active]="measure==='raw'" (click)="toggleMeasure('raw')">raw</button>
-        <button class="measure" [class.active]="measure==='std'" (click)="toggleMeasure('std')">std</button>
-      </div>
+.delete {
+  margin-left: 6px;
+  cursor: pointer;
+  color: red;
+}
 
-      <button class="search" (click)="search()">Search</button>
-    </div>
-  </div>
+select {
+  min-width: 160px;
+  padding: 4px;
+}
 
-  <!-- table appears after search -->
-  <div *ngIf="isTablePopulated()" class="results">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th><th>Name</th><th>Basket</th><th>Factor Code</th><th>Macro</th><th>Region</th><th>Group</th><th>Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of tableData">
-          <td>{{row.id}}</td>
-          <td>{{row.name}}</td>
-          <td>{{row.basketTicker}}</td>
-          <td>{{row.factorCode}}</td>
-          <td>{{row.factorMacro}}</td>
-          <td>{{row.basketRegion}}</td>
-          <td>{{row.factorGroup}}</td>
-          <td>{{row.value}}</td>
-        </tr>
-      </tbody>
-    </table>
+.counters {
+  font-size: 12px;
+  color: gray;
+  margin-top: 2px;
+}
 
-    <!-- plot rows controls only visible when table populated -->
-    <div class="plot-controls">
-      <label>Plot Rows: Range</label>
-      <input type="number" [(ngModel)]="plotRangeFrom" placeholder="from" min="1" />
-      <input type="number" [(ngModel)]="plotRangeTo" placeholder="to" min="1" />
-      <div class="note">Max rows allowed: {{maxRows}}</div>
-    </div>
-  </div>
+.measure-search {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  gap: 12px;
+}
 
-</div>
-` + `
+.chip {
+  display: inline-block;
+  background: #f0f0f0;
+  padding: 4px 10px;
+  border-radius: 16px;
+  margin-right: 6px;
+  cursor: pointer;
+}
 
-// ================================
-// File: src/app/app.component.css
-// ================================
+.search-btn {
+  background: #007bff;
+  color: white;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
 
-.shell{ font-family: Arial, Helvetica, sans-serif; padding:18px; }
-.filters-inline{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; }
-.filter-inline{ min-width:200px; max-width:240px; }
-.label-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
-.label{ font-weight:600 }
-.icons button{ margin-left:6px; border:none; background:#eee; width:28px; height:28px; border-radius:6px; }
-.counters{ color:#607d8b; margin-top:6px }
-.actions-inline{ display:flex; align-items:center; gap:10px; margin-left:8px; }
-.measures{ display:flex; gap:6px }
-.measure{ padding:8px 10px; border-radius:16px; border:1px solid #bdbdbd; background:#fafafa }
-.measure.active{ background:#4caf50; color:white; border-color:#4caf50 }
-.search{ background:#1976d2; color:white; border:none; padding:8px 14px; border-radius:6px }
+.table-container {
+  margin: 20px;
+}
 
-/* table */
-.results{ margin-top:18px }
-table{ width:100%; border-collapse:collapse }
-th,td{ padding:8px 6px; border-bottom:1px solid #eee; text-align:left }
-.plot-controls{ margin-top:12px; display:flex; gap:8px; align-items:center }
-.note{ color:#888 }
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
 
-@media(max-width:900px){ .filters-inline{ flex-direction:column } }
+.table-container th, .table-container td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.plot-rows {
+  margin-top: 12px;
+}
+
+.plot-btn {
+  background: green;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+```
