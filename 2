@@ -1,456 +1,586 @@
-import { Component, inject, TemplateRef, ViewChild, ElementRef, QueryList, ViewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog, MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
-import { MatOptionModule } from '@angular/material/core';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { COMMA, ENTER } from '@angular/cdk/keycodes';
-import { MatChipInputEvent, MatChipGrid, MatChipsModule } from '@angular/material/chips';
-import { MatTableModule } from '@angular/material/table';
-import { MatTable } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { FormsModule } from '@angular/forms'; 
 
-import rawData from '../../assets/data.json';
+// --- INTERFACES ---
 
-interface Field {
+interface FilterOption {
+  id: string;
   name: string;
-  value: string[];
-  unique: number;
-  constant: number;
-  values: string[];
-  checked?: boolean;
-  searchText: string;
-  mandatory?: boolean;
-  trigger?: MatAutocompleteTrigger;
+}
+
+interface FilterCriterion {
+  id: string;
+  label: string;
+  options: FilterOption[];
+  selectedIds: string[];
+  matches: number;
+  universe: number;
+  showDropdown: boolean;
+}
+
+interface MeasureChip {
+  id: string;
+  label: string;
+  active: boolean;
+}
+
+interface TableRow {
+  id: number;
+  basketTicker: string;
+  factorCode: string;
+  measure: string;
+  basketRegion: string;
+  factorGroupName: string;
+  factorName: string;
+}
+
+interface SortState {
+  column: keyof TableRow | null;
+  direction: 'asc' | 'desc';
 }
 
 @Component({
-  selector: 'app-base-editor',
+  selector: 'app-root',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatListModule,
-    MatCheckboxModule,
-    MatAutocompleteModule,
-    MatOptionModule,
-    MatTooltipModule,
-    MatChipsModule,
-    MatTableModule,
-    MatSnackBarModule
-  ],
-  templateUrl: './base-editor.component.html',
-  styleUrls: ['./base-editor.component.css']
+  imports: [CommonModule, FormsModule],
+  template: `
+    <!-- Main Container: Responsive padding and max width -->
+    <div class="p-4 sm:p-6 bg-gray-50 min-h-screen font-inter">
+      <div class="max-w-7xl mx-auto bg-white shadow-2xl rounded-xl p-4 sm:p-6">
+
+        <!-- Header and Global Actions -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 mb-6 border-b border-gray-200 space-y-4 md:space-y-0">
+          <div class="flex items-center">
+            <h1 class="text-xl sm:text-2xl font-semibold text-gray-800">Factorlab Filters</h1>
+            <!-- Global Info -->
+            <button (click)="showInfoModal = true"
+              class="ml-3 text-gray-400 hover:text-blue-600 transition-colors focus:outline-none"
+              title="Filter System Information">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            <!-- Global Delete (Clear All) -->
+            <button (click)="resetAllFilters()"
+              class="ml-2 text-red-500 hover:text-red-700 transition-colors focus:outline-none"
+              title="Clear All Filters">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a8 8 0 110 16 8 8 0 010-16zM5 10a1 1 0 001 1h8a1 1 0 100-2H6a1 1 0 00-1 1z" />
+              </svg>
+            </button>
+          </div>
+          <!-- Measure Chips and Search Button -->
+          <div class="flex items-center space-x-3 sm:space-x-4 w-full md:w-auto justify-end">
+            <div class="text-sm font-medium text-gray-600 whitespace-nowrap">Measure:</div>
+            <ng-container *ngFor="let measure of measures()">
+              <button
+                (click)="toggleMeasure(measure)"
+                [ngClass]="{'bg-blue-600 text-white shadow-md': measure.active, 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-300': !measure.active}"
+                class="px-3 py-1 text-sm rounded-full transition-all duration-200 whitespace-nowrap">
+                {{ measure.label }}
+              </button>
+            </ng-container>
+            <button (click)="searchData()" class="px-4 sm:px-6 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
+              Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Row (Responsive Grid: 1 col on mobile, 2 on tablet, 5 on desktop) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <ng-container *ngFor="let filter of criteria(); index as i">
+            <div class="relative" (document:click)="closeDropdowns($event, filter)">
+              <!-- Filter Label and Per-Filter Actions -->
+              <div class="flex items-center mb-1">
+                <label class="text-sm font-medium text-gray-700 mr-2">{{ filter.label }}</label>
+                <!-- Info Button -->
+                <button (click)="showFilterInfo(filter.label)"
+                  class="text-gray-400 hover:text-blue-600 transition-colors focus:outline-none"
+                  title="Info for {{ filter.label }}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                </button>
+                <!-- Delete Button (Clear Filter) -->
+                <button (click)="clearFilter(filter.id); $event.stopPropagation();"
+                  class="ml-1 text-red-400 hover:text-red-600 transition-colors focus:outline-none"
+                  title="Clear {{ filter.label }}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                </button>
+              </div>
+
+              <!-- Custom Multiselect Input Display -->
+              <div (click)="toggleDropdown(filter)"
+                class="cursor-pointer border border-gray-300 rounded-lg p-2 flex items-center min-h-[40px] text-sm bg-white hover:border-blue-500 transition-colors shadow-sm">
+                <span *ngIf="filter.selectedIds.length === 0" class="text-gray-400">Type or select values...</span>
+                <div *ngIf="filter.selectedIds.length > 0" class="flex flex-wrap gap-1">
+                  <!-- Display selected chips concicely -->
+                  <ng-container *ngFor="let id of conciseSelectedIds(filter); index as j">
+                    <span *ngIf="j < 3" class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-xs font-medium whitespace-nowrap">
+                      {{ getOptionName(filter, id) }}
+                    </span>
+                  </ng-container>
+                  <!-- '+X more' chip with tooltip/popover capability (simulated) -->
+                  <span *ngIf="filter.selectedIds.length > 3"
+                        (click)="$event.stopPropagation();"
+                        class="px-2 py-0.5 bg-gray-200 text-gray-700 rounded-md text-xs font-medium cursor-pointer hover:bg-gray-300 whitespace-nowrap"
+                        title="{{ getFullSelectedList(filter) }}">
+                    +{{ filter.selectedIds.length - 3 }} more
+                  </span>
+                </div>
+              </div>
+
+              <!-- Dropdown Panel (The Custom Select - Copy/Paste, Searchable, Multi-select) -->
+              <div *ngIf="filter.showDropdown"
+                   class="absolute z-10 mt-1 w-full rounded-md bg-white shadow-2xl border border-gray-300 p-3 max-w-xs sm:max-w-sm"
+                   (click)="$event.stopPropagation()">
+                
+                <!-- Search Input -->
+                <input type="text" [(ngModel)]="currentSearchTerm" placeholder="Filter options..."
+                       (ngModelChange)="filterOptions()"
+                       class="w-full p-2 border border-gray-300 rounded-md text-sm mb-2 focus:ring-blue-500 focus:border-blue-500">
+
+                <!-- Copy Paste Area -->
+                <textarea #pasteArea placeholder="Paste values here (one per line)..."
+                          (input)="handlePaste(filter, pasteArea.value); pasteArea.value = ''"
+                          class="w-full p-2 border border-gray-300 rounded-md text-sm mb-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows="2"></textarea>
+                
+                <!-- Checkbox List (Filtered) -->
+                <div class="max-h-48 overflow-y-auto space-y-1">
+                  <ng-container *ngFor="let option of filteredOptions()">
+                    <div class="flex items-center">
+                      <input type="checkbox" [id]="filter.id + option.id" [checked]="filter.selectedIds.includes(option.id)"
+                            (change)="toggleSelection(filter.id, option.id, $event)"
+                            class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                      <label [for]="filter.id + option.id" class="ml-2 text-sm text-gray-700 cursor-pointer w-full">
+                        {{ option.name }}
+                      </label>
+                    </div>
+                  </ng-container>
+
+                  <div *ngIf="filteredOptions().length === 0" class="text-center text-sm text-gray-400 py-2">
+                    No matching options.
+                  </div>
+                </div>
+
+                <div class="flex justify-end pt-2 border-t mt-2">
+                  <button (click)="filter.showDropdown = false" class="px-3 py-1 text-sm bg-gray-200 rounded-lg hover:bg-gray-300">
+                    Done
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live Feedback below Dropdown -->
+              <div class="mt-1 text-xs text-gray-500 flex justify-between">
+                <span>Matches: <span class="font-semibold text-blue-600">{{ filter.matches }}</span></span>
+                <span>Universe: <span class="font-semibold">{{ filter.universe }}</span></span>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+
+        <!-- Results Table -->
+        <div class="mt-10">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">Results ({{ filteredTableData().length }} rows)</h2>
+
+          <!-- Table Container with Scrollability -->
+          <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-md">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-100">
+                <tr>
+                  <!-- Checkbox Column -->
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                    <input type="checkbox" (change)="toggleAllPlotSelection($event)" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                  </th>
+                  <!-- Dynamic Headers -->
+                  <th *ngFor="let col of tableColumns"
+                      (click)="sortData(col.key as keyof TableRow)"
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors whitespace-nowrap">
+                    <div class="flex items-center">
+                      {{ col.label }}
+                      <span class="ml-1 text-gray-400">
+                        <ng-container *ngIf="sortState().column === col.key">
+                          <svg *ngIf="sortState().direction === 'asc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                          <svg *ngIf="sortState().direction === 'desc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                        </ng-container>
+                        <svg *ngIf="sortState().column !== col.key" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5-5 5 5z"/></svg>
+                      </span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr *ngFor="let row of filteredTableData(); even as isEven" [class.bg-gray-50]="isEven" class="hover:bg-blue-50 transition-colors">
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <input type="checkbox" [checked]="plotSelections().includes(row.id)" (change)="togglePlotSelection(row.id)" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ getFilterName('basketTicker', row.basketTicker) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorCode', row.factorCode) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('basketRegion', row.basketRegion) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorGroupName', row.factorGroupName) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorName', row.factorName) }}</td>
+                </tr>
+                <tr *ngIf="filteredTableData().length === 0">
+                    <td [attr.colspan]="tableColumns.length + 1" class="text-center py-4 text-gray-500">No results found matching the current criteria.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Plotting Controls -->
+          <div class="flex justify-end items-center mt-4 space-x-3">
+            <div class="text-sm font-medium text-gray-600">Plot Rows:</div>
+            <div class="flex items-center space-x-1">
+              <input type="number" [(ngModel)]="plotStartRange" placeholder="Start" class="w-20 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+              <span class="text-gray-500">-</span>
+              <input type="number" [(ngModel)]="plotEndRange" placeholder="End" class="w-20 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button (click)="plotData()" class="px-6 py-2 bg-green-600 text-white font-medium rounded-lg shadow-lg hover:bg-green-700 transition-colors">
+              Plot Selected
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Modal (Simple Implementation) -->
+      <div *ngIf="showInfoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50 p-4">
+        <div class="bg-white p-6 rounded-lg shadow-2xl max-w-lg w-full" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-bold border-b pb-2 mb-3">Factorlab Filter System Information</h3>
+          <p class="text-sm text-gray-700">Use the **5 primary filters** above to refine the data. **Matches** and **Universe** update instantly below each filter as you type or select values, providing real-time feedback.</p>
+          <p class="text-sm text-gray-700 mt-2">The **Measure chips** (raw/std) define the output format. Maximum 50 rows can be plotted; use the range selector to specify a block of data or the checkboxes for individual selection.</p>
+          <div class="flex justify-end mt-4">
+            <button (click)="showInfoModal = false" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BaseEditorComponent {
-  dialog = inject(MatDialog);
-  data = inject(MAT_DIALOG_DATA);
+export class App {
+  // --- UI State ---
+  showInfoModal = false;
+  
+  // State for search within the currently open dropdown
+  currentSearchTerm: string = '';
 
-  hoveredItem: any = null;
-  separatorKeysCodes: number[] = [ENTER, COMMA];
-  @ViewChild('criteriaContainer') criteriaContainer!: ElementRef;
-  @ViewChild('criteriaRows', { read: ElementRef }) criteriaRows!: ElementRef;
-  @ViewChildren('chipList') chipLists!: QueryList<MatChipGrid>;
-@ViewChild('resultsTable') table!: MatTable<any>;
-
-  // --- Data from JSON
-  private entries: any[] = Object.values(rawData);
-
-  // --- Fields
-  fields: Field[] = [
+  // --- Data State (Signals) ---
+  criteria = signal<FilterCriterion[]>([
     {
-      name: 'Basket_Name',
-      value: [],
-      unique: 50,
-      constant: 151760,
-      values: this.getUniqueValues('basket_name'),
-      checked: true,
-      searchText: '',
-      mandatory: true
+      id: 'basketTicker', label: 'Basket Ticker', selectedIds: ['BASKET1'],
+      options: [{ id: 'BASKET1', name: 'BCRERETL' }, { id: 'BASKET2', name: 'IDXEURO' }, { id: 'BASKET3', name: 'APEX' }, { id: 'BASKET4', name: 'Global Equity' }, { id: 'BASKET5', name: 'DM Europe' }],
+      matches: 237, universe: 174432, showDropdown: false
     },
     {
-      name: 'Factor_Description',
-      value: [],
-      unique: 100,
-      constant: 151760,
-      values: this.getUniqueValues('factor_description'),
-      checked: true,
-      searchText: '',
-      mandatory: true
+      id: 'factorCode', label: 'Factor Code', selectedIds: ['FC1', 'FC2', 'FC3', 'FC4'], 
+      options: [{ id: 'FC1', name: 'Economic Exposure - DM' }, { id: 'FC2', name: 'Change in Analyst' }, { id: 'FC3', name: 'Momentum Score' }, { id: 'FC4', name: 'Valuation Ratio' }, { id: 'FC5', name: 'Quality Index' }, { id: 'FC6', name: 'Growth Rate' }],
+      matches: 150, universe: 174432, showDropdown: false
     },
     {
-      name: 'Measure',
-      value: [],
-      unique: 200,
-      constant: 151760,
-      values: ['Raw', 'Std'], // treat object_id as measure
-      checked: true,
-      searchText: '',
-      mandatory: true
-    }
+      id: 'basketRegion', label: 'Basket Region', selectedIds: ['EU', 'APAC', 'US'],
+      options: [{ id: 'EU', name: 'Europe' }, { id: 'APAC', name: 'Asia Pacific' }, { id: 'US', name: 'United States' }, { id: 'LATAM', name: 'Latam' }, { id: 'EMEA', name: 'EMEA' }, { id: 'INDIA', name: 'India' }],
+      matches: 85, universe: 174432, showDropdown: false
+    },
+    {
+      id: 'factorGroupName', label: 'Factor Group Name', selectedIds: [],
+      options: [{ id: 'MACRO', name: 'Macro' }, { id: 'SENTI', name: 'Sentiment' }, { id: 'MOMENTUM', name: 'Momentum' }, { id: 'VAL', name: 'Valuation' }],
+      matches: 0, universe: 174432, showDropdown: false
+    },
+    {
+      id: 'factorName', label: 'Factor Name', selectedIds: [],
+      options: [{ id: 'FS', name: 'Foreign Sensitivity' }, { id: 'AS', name: 'Analyst Sentiment' }, { id: 'BETA', name: 'Beta' }, { id: 'ALPHA', name: 'Alpha Factor' }],
+      matches: 0, universe: 174432, showDropdown: false
+    },
+  ]);
+
+  measures = signal<MeasureChip[]>([
+    { id: 'raw', label: 'raw', active: true },
+    { id: 'std', label: 'std', active: false },
+  ]);
+
+  // Sample data using IDs for filtering accuracy
+  initialTableData: TableRow[] = [
+    { id: 1, basketTicker: 'BASKET1', factorCode: 'FC1', measure: 'raw', basketRegion: 'EU', factorGroupName: 'MACRO', factorName: 'FS' },
+    { id: 2, basketTicker: 'BASKET1', factorCode: 'FC1', measure: 'raw', basketRegion: 'EU', factorGroupName: 'MACRO', factorName: 'FS' },
+    { id: 3, basketTicker: 'BASKET1', factorCode: 'FC2', measure: 'raw', basketRegion: 'APAC', factorGroupName: 'SENTI', factorName: 'AS' },
+    { id: 4, basketTicker: 'BASKET2', factorCode: 'FC3', measure: 'std', basketRegion: 'US', factorGroupName: 'MOMENTUM', factorName: 'ALPHA' },
+    { id: 5, basketTicker: 'BASKET1', factorCode: 'FC1', measure: 'raw', basketRegion: 'EU', factorGroupName: 'MACRO', factorName: 'FS' },
+    { id: 6, basketTicker: 'BASKET1', factorCode: 'FC3', measure: 'raw', basketRegion: 'APAC', factorGroupName: 'MOMENTUM', factorName: 'BETA' },
   ];
 
-  // --- Menu
-  selectorOpen = false;
-  menuLevels: any[][] = [];
-  browseDialogRef: any;
+  tableData = signal<TableRow[]>(this.initialTableData);
+  plotSelections = signal<number[]>([]);
+  sortState = signal<SortState>({ column: null, direction: 'asc' });
 
-  rootCategories = [
-    { name: 'Basket_Name' },
-    { name: 'Basket_Region' },
-    { name: 'Factor_Description' },
-    { name: 'Factor_name' },
-    { name: 'Factor_group_name' },
-    { name: 'Measure' }
+  // Plotting range inputs
+  plotStartRange: number | null = null;
+  plotEndRange: number | null = null;
+
+  // Table Columns (Note: 'Measure' column removed as per request to decouple it)
+  tableColumns = [
+    { key: 'basketTicker', label: 'Basket Ticker' },
+    { key: 'factorCode', label: 'Factor Code' },
+    { key: 'basketRegion', label: 'Basket Region' },
+    { key: 'factorGroupName', label: 'Factor Group Name' },
+    { key: 'factorName', label: 'Factor Name' },
   ];
 
-  constructor(private snackBar: MatSnackBar) {
-    this.menuLevels = [this.rootCategories];
-  }
+  // --- Computed Values ---
 
-  // --- Helpers to get unique values
-  private getUniqueValues(field: string): string[] {
-    return [...new Set(this.entries.map((e: any) => e[field]))].filter(v => !!v);
-  }
+  filteredTableData = computed(() => {
+    let data = [...this.tableData()];
+    const currentCriteria = this.criteria();
 
-  // --- Actions
-  removeField(index: number) {
-    this.fields.splice(index, 1);
-  }
+    // 1. Basic Filtering (Apply a combined filter, simulating the server response)
+    // Find selected IDs for each criterion.
+    const activeFilters = currentCriteria.filter(c => c.selectedIds.length > 0);
 
-  showInfo(field: Field) {
-    alert(`Info about ${field.name}`);
-  }
-
-  addField(selectedName: string) {
-    const exists = this.fields.find(f => f.name === selectedName);
-    if (exists) return;
-
-    this.fields.push({
-      name: selectedName,
-      value: [],
-      unique: Math.floor(Math.random() * 200),
-      constant: 151760,
-      values: this.getUniqueValues(selectedName.toLowerCase()), // ✅ get values from JSON
-      checked: false,
-      searchText: ''
-    });
-
-    setTimeout(() => {
-      if (this.criteriaContainer) {
-        this.criteriaContainer.nativeElement.scrollTop = this.criteriaContainer.nativeElement.scrollHeight;
-      }
-    });
-  }
-
-  addValue(field: Field, value: string) {
-    if (value && !field.value.includes(value)) {
-      field.value.push(value);
-      field.searchText = '';
-    }
-  }
-
-  addFromInput(event: MatChipInputEvent, field: Field): void {
-    const value = (event.value || '').trim();
-    if (value && field.values.includes(value) && !field.value.includes(value)) {
-      field.value.push(value);
-    }
-    event.chipInput?.clear();
-    field.searchText = '';
-  }
-
-  removeValue(field: Field, value: string): void {
-    const index = field.value.indexOf(value);
-    if (index >= 0) {
-      field.value.splice(index, 1);
-    }
-  }
-
-  openBrowse(templateRef: TemplateRef<any>) {
-    this.hoveredItem = null;
-    this.menuLevels = [this.rootCategories];
-    this.selectorOpen = true;
-
-    this.browseDialogRef = this.dialog.open(templateRef, {
-      width: '40vw',
-      height: '50vh',
-      maxWidth: '70vw',
-      maxHeight: '70vh',
-      disableClose: false,
-      autoFocus: true
-    });
-
-    this.browseDialogRef.afterClosed().subscribe(() => {
-      this.selectorOpen = false;
-      this.browseDialogRef = null;
-    });
-  }
-
-  filterOptions(field: Field) {
-    const search = (field.searchText || '').toLowerCase();
-    return field.values
-      .filter(opt => !field.value.includes(opt))
-      .filter(opt => opt.toLowerCase().includes(search));
-  }
-
-  addTrigger(field: Field, trigger: MatAutocompleteTrigger) {
-    field.trigger = trigger;
-  }
-
-  toggleAutocomplete(field: Field, input: HTMLInputElement) {
-    if (!field.trigger) return;
-    if (input.value === '') {
-      if (field.trigger.panelOpen) {
-        field.trigger.closePanel();
-      } else {
-        field.trigger.openPanel();
-      }
-    }
-  }
-
-  selectItem(item: any) {
-    this.addField(item.name);
-    if (this.browseDialogRef) {
-      this.browseDialogRef.close();
-    }
-  }
-
-  closeBase() {
-    this.dialog.closeAll();
-    if (this.data?.reopenParent) {
-      this.data.reopenParent();
-    }
-  }
-
-onCheckboxChange(field: Field, event: any) {
-  if (field.mandatory && !event.checked) {
-    // prevent unchecking
-    field.checked = true;   // force it to remain checked
-    event.source.checked = true;
-
-            this.snackBar.open(`${field.name} is mandatory and cannot be unchecked.`, 'Close', {
-        duration: 3000,
-        verticalPosition: 'top'
+    // Filter data based on ALL active filters (AND logic)
+    data = data.filter(row => {
+      return activeFilters.every(filter => {
+        const rowValue = row[filter.id as keyof TableRow];
+        return filter.selectedIds.includes(rowValue as string);
       });
-  } else {
-    field.checked = event.checked;
-  }
-}
+    });
+    
+    // 2. Sorting
+    const sort = this.sortState();
+    if (sort.column) {
+      data.sort((a, b) => {
+        const valA = a[sort.column] as string;
+        const valB = b[sort.column] as string;
 
+        let comparison = 0;
+        if (valA > valB) comparison = 1;
+        else if (valA < valB) comparison = -1;
 
-// --- For results table
-results: any[] = [];
-
-selectAllChecked = false;
-// Map UI field names → JSON keys
-fieldToJsonKey: Record<string, string | null> = {
-  'Basket_Name': 'basket_name',           // UI field Basket_Name maps to JSON basket_name
-  'Factor_Description': 'factor_description', // UI field Factor_Description maps to JSON factor_description
-  'Measure': null                         // special case: Measure is derived from is_raw_available / is_std_available
-};
-
-
-// --- Update Results function
-// updateResults() {
-//   const fieldToJsonKey: Record<string, string | null> = {
-//     'Basket_Name': 'basket_name',
-//     'Factor_Description': 'factor_description',
-//     'Measure': null
-//   };
-
-//   // Build filters for non-measure fields
-//   const filters: Record<string, string[]> = {};
-//   this.fields.forEach(f => {
-//     const jsonKey = fieldToJsonKey[f.name];
-//     if (jsonKey && f.value.length > 0) {
-//       filters[jsonKey] = f.value;
-//     }
-//   });
-
-//   // Step 1: Filter JSON using all selected dropdowns
-//   const desiredObjects = this.entries.filter(e =>
-//     Object.keys(filters).every(jsonKey => filters[jsonKey].includes(e[jsonKey]))
-//   );
-
-//   // Step 2: Explode measures into separate rows
-//   const tableRows: any[] = [];
-//   desiredObjects.forEach(e => {
-//     if (e.is_raw_available) {
-//       tableRows.push({
-//         ...e,
-//         measure: 'Raw',
-//         object_id: `${e.object_id}:Raw`
-//       });
-//     }
-//     if (e.is_std_available) {
-//       tableRows.push({
-//         ...e,
-//         measure: 'Std',
-//         object_id: `${e.object_id}:Std`
-//       });
-//     }
-//   });
-
-//   // Step 3: Save result
-//   this.results = tableRows;
-//   this.selectedRows.clear();
-//   this.selectAllChecked = false;
-
-//   if (this.results.length === 0) {
-//     this.snackBar.open('No matching entries found', 'Close', {
-//       duration: 3000,
-//       verticalPosition: 'top'
-//     });
-//   }
-
-//   console.log('Filtered rows:', this.results);
-// }
-
-
-updateResults() {
-  // Map UI field names → JSON keys (except Measure)
-const fieldToJsonKey: Record<string, string | null> = {
-  'Basket_Name': 'basket_name',
-  'Factor_Description': 'factor_description',
-  'Factor_name': 'factor_name',
-  'Factor_group_name': 'factor_group_name',
-  'Basket_Region': 'basket_region',
-  'Measure': null   // handled separately
-};
-
-
-  const mandatoryFields = ['Basket_Name', 'Factor_Description', 'Measure'];
-  const missing = mandatoryFields.filter(f => {
-    const field = this.fields.find(x => x.name === f);
-    return !field || field.value.length === 0;
-  });
-
-  if (missing.length > 0) {
-    this.snackBar.open(
-      'Please select at least one value for all mandatory fields',
-      'Close',
-      { duration: 3000, verticalPosition: 'top' }
-    );
-    return; // stop execution
-  }
-  // Build filters
-  const filters: Record<string, string[]> = {};
-  this.fields.forEach(f => {
-    const jsonKey = fieldToJsonKey[f.name];
-    if (jsonKey && f.value.length > 0) {
-      filters[jsonKey] = f.value;
+        return sort.direction === 'desc' ? comparison * -1 : comparison;
+      });
     }
+
+    return data;
   });
 
-  // Filter entries by JSON keys (Basket_Name, Factor_Description)
-  const filtered = this.entries.filter(e =>
-    Object.keys(filters).every(jsonKey =>
-      filters[jsonKey].includes(e[jsonKey])
-    )
-  );
+  /** Filters the options list based on the search term in the currently open dropdown */
+  filteredOptions = computed(() => {
+    const openFilter = this.criteria().find(f => f.showDropdown);
+    if (!openFilter) {
+      return [];
+    }
 
-  // Handle Measure separately
-  const measureField = this.fields.find(f => f.name.toLowerCase() === 'measure');
-  const selectedMeasures = measureField?.value ?? [];
+    const term = this.currentSearchTerm.toLowerCase().trim();
+    if (!term) {
+      return openFilter.options;
+    }
 
-  const tableRows: any[] = [];
-  filtered.forEach(e => {
-    selectedMeasures.forEach(measure => {
-      if ((measure.toLowerCase() === 'raw' && e.is_raw_available) ||
-          (measure.toLowerCase() === 'std' && e.is_std_available)) {
-        tableRows.push({
-          ...e,
-          measure,
-          object_id: e.object_id + ':' + measure
-        });
+    return openFilter.options.filter(option =>
+      option.name.toLowerCase().includes(term) ||
+      option.id.toLowerCase().includes(term)
+    );
+  });
+
+  // --- Utility Methods ---
+
+  /** Gets the readable name for an option ID (used in template for table display) */
+  getFilterName(filterId: string, id: string): string {
+    const filter = this.criteria().find(f => f.id === filterId);
+    return filter?.options.find(o => o.id === id)?.name || id;
+  }
+
+  /** Gets the readable name for an option ID (used internally for selected chips) */
+  getOptionName(filter: FilterCriterion, id: string): string {
+    return filter.options.find(o => o.id === id)?.name || id;
+  }
+
+  /** Shows only the first 3 selected IDs for concise display */
+  conciseSelectedIds(filter: FilterCriterion): string[] {
+    return filter.selectedIds.slice(0, 3);
+  }
+
+  /** Generates the full list for the '+X more' tooltip/title attribute */
+  getFullSelectedList(filter: FilterCriterion): string {
+    return filter.selectedIds.map(id => this.getOptionName(filter, id)).join(', ');
+  }
+
+  // --- Dropdown/Filter Interaction Logic ---
+
+  /** Toggles the custom dropdown visibility for a filter */
+  toggleDropdown(filter: FilterCriterion) {
+    this.currentSearchTerm = ''; // Reset search term when opening a new dropdown
+    this.criteria.update(c => c.map(f => ({
+      ...f,
+      // Open the clicked filter, close all others
+      showDropdown: f.id === filter.id ? !f.showDropdown : false
+    })));
+  }
+
+  /** Closes all dropdowns when clicking outside */
+  closeDropdowns(event: MouseEvent, currentFilter: FilterCriterion) {
+    const target = event.target as HTMLElement;
+    // Check if the click occurred outside any dropdown container
+    if (!target.closest('.relative')) {
+      this.criteria.update(c => c.map(f => ({
+        ...f,
+        showDropdown: false
+      })));
+      this.currentSearchTerm = '';
+    }
+  }
+
+  /** Toggles a single selection in the dropdown (Multi-select core logic) */
+  toggleSelection(filterId: string, optionId: string, event: Event) {
+    const isChecked = (event.target as HTMLInputElement).checked;
+
+    this.criteria.update(c => c.map(f => {
+      if (f.id === filterId) {
+        let newSelectedIds = isChecked
+          ? Array.from(new Set([...f.selectedIds, optionId])) // Add
+          : f.selectedIds.filter(id => id !== optionId); // Remove
+
+        // Simulate Match/Universe update for real-time feedback
+        const newMatches = f.universe - (newSelectedIds.length * 500); // Dummy calculation
+        return { ...f, selectedIds: newSelectedIds, matches: Math.max(0, newMatches) };
       }
-    });
-  });
+      return f;
+    }));
+  }
 
-  this.results = tableRows;
-  this.selectedRows.clear();
-  this.selectAllChecked = false;
+  /** Handles pasting values into the textarea for bulk selection */
+  handlePaste(filter: FilterCriterion, text: string) {
+    // 1. Clean the pasted text
+    const pastedValues = text.split('\n')
+      .map(v => v.trim().toUpperCase())
+      .filter(v => v.length > 0);
 
+    // 2. Find matching IDs
+    const validIds = filter.options
+      .filter(opt => pastedValues.includes(opt.name.toUpperCase()) || pastedValues.includes(opt.id.toUpperCase()))
+      .map(opt => opt.id);
 
-  if (this.results.length === 0) {
-    this.snackBar.open('No matching entries found', 'Close', {
-      duration: 3000,
-      verticalPosition: 'top'
+    // 3. Update the filter selections
+    this.criteria.update(c => c.map(f => {
+      if (f.id === filter.id) {
+        // Merge existing with new valid ones
+        const uniqueIds = Array.from(new Set([...f.selectedIds, ...validIds]));
+
+        const newMatches = f.universe - (uniqueIds.length * 500);
+        return { ...f, selectedIds: uniqueIds, matches: Math.max(0, newMatches) };
+      }
+      return f;
+    }));
+  }
+
+  /** Clears selections for a specific filter (Delete action) */
+  clearFilter(filterId: string) {
+    this.criteria.update(c => c.map(f => {
+      if (f.id === filterId) {
+        return { ...f, selectedIds: [], matches: f.universe };
+      }
+      return f;
+    }));
+  }
+
+  /** Resets all filters globally */
+  resetAllFilters() {
+    this.criteria.update(c => c.map(f => ({ ...f, selectedIds: [], matches: f.universe, showDropdown: false })));
+    this.measures.update(m => m.map((m, i) => ({ ...m, active: m.id === 'raw' })));
+    this.tableData.set(this.initialTableData);
+    this.plotSelections.set([]);
+    this.plotStartRange = null;
+    this.plotEndRange = null;
+    this.currentSearchTerm = '';
+    console.log('All filters and selections reset.');
+  }
+
+  /** Simulates showing filter info */
+  showFilterInfo(label: string) {
+    // Using alert as a placeholder for a custom modal UI
+    alert(`Information for ${label}: This filter controls the scope of the data based on the selected attributes for ${label}.`);
+  }
+
+  // --- Measure Logic ---
+
+  toggleMeasure(measure: MeasureChip) {
+    this.measures.update(m => m.map(chip => ({
+      ...chip,
+      active: chip.id === measure.id
+    })));
+  }
+
+  // --- Table Logic (Sorting and Plotting) ---
+
+  sortData(column: keyof TableRow) {
+    this.sortState.update(s => {
+      const newDirection = s.column === column && s.direction === 'asc' ? 'desc' : 'asc';
+      return { column: column, direction: newDirection };
     });
   }
 
-
-  console.log('Filtered results:', this.results);
-}
-
-
-selectedRows = new Set<string>();
-
-// Toggle individual row
-toggleRowSelection(objectId: string, checked: boolean) {
-  if (checked) this.selectedRows.add(objectId);
-  else this.selectedRows.delete(objectId);
-}
-
-// Check if all rows are selected
-allSelected(): boolean {
-  return this.results.length > 0 && this.selectedRows.size === this.results.length;
-}
-// Check if some but not all rows are selected
-someSelected(): boolean {
-  return this.selectedRows.size > 0 && this.selectedRows.size < this.results.length;
-}
-
-// Toggle select all
-toggleSelectAll(checked: boolean) {
-  if (checked) {
-    this.results.forEach(r => this.selectedRows.add(r.object_id));
-  } else {
-    this.selectedRows.clear();
+  togglePlotSelection(rowId: number) {
+    this.plotSelections.update(ids => {
+      if (ids.includes(rowId)) {
+        return ids.filter(id => id !== rowId);
+      }
+      return [...ids, rowId];
+    });
   }
-}
 
-// --- Plot button click
-plotSelected() {
-  console.log('Plotting rows:', Array.from(this.selectedRows));
+  toggleAllPlotSelection(event: Event) {
+    const isChecked = (event.target as HTMLInputElement).checked;
+    if (isChecked) {
+      this.plotSelections.set(this.filteredTableData().map(row => row.id));
+    } else {
+      this.plotSelections.set([]);
+    }
+  }
 
-}
+  // --- Action Logic ---
 
-// Returns dynamic column list for table
-get displayedColumns(): string[] {
-  return ['select', 'ticker', ...this.fields.map(f => this.getColumnKey(f)), 'measure'];
-}
+  searchData() {
+    const activeMeasure = this.measures().find(m => m.active)?.label || 'raw';
+    const selectedFilterIds = this.criteria().map(f => ({ id: f.id, values: f.selectedIds }));
 
-getRowValue(row: any, fieldName: string) {
-  return row[fieldName.toLowerCase()] || '-';
-}
+    console.log('--- Executing Search ---');
+    console.log('Active Measure:', activeMeasure);
+    console.log('Active Filters:', selectedFilterIds);
 
-getColumnKey(f: Field) {
-  return f.name.replace(/\s+/g, '_');
-}
-// Always 4 attribute columns (2-5)
-get attributeColumns(): string[] {
-  // Exclude Measure and Checkbox/Ticker
-  return this.fields
-           .filter(f => f.name.toLowerCase() !== 'measure')
-           .slice(0, 4)
-           .map(f => f.name);
-}
+    // In a real application, this triggers data fetching and updates tableData.
+    alert('Search triggered. Table display updated based on applied filters.');
+  }
 
+  plotData() {
+    let idsToPlot: number[] = [];
+    const data = this.filteredTableData();
 
+    // 1. Prioritize range input if both start and end are set
+    if (this.plotStartRange !== null && this.plotEndRange !== null && this.plotStartRange > 0 && this.plotEndRange > 0) {
+      const start = this.plotStartRange - 1; // Convert to 0-based index
+      const end = this.plotEndRange;
+
+      if (start < data.length && end <= data.length && start < end) {
+        const rowsInRange = data.slice(start, end);
+        idsToPlot = rowsInRange.map(row => row.id);
+      } else {
+        alert('Invalid range specified. Please ensure start < end and both are within the result set size.');
+        return;
+      }
+    } else {
+      // 2. Use selected checkboxes
+      idsToPlot = this.plotSelections();
+    }
+
+    // 3. Enforce 50-row limit
+    if (idsToPlot.length === 0) {
+      alert('Please select rows or enter a valid range to plot.');
+      return;
+    }
+    
+    if (idsToPlot.length > 50) {
+      alert(`Warning: Plot selection (${idsToPlot.length} rows) exceeds the 50-row limit. Plotting first 50 rows.`);
+      idsToPlot = idsToPlot.slice(0, 50);
+    }
+
+    console.log('--- Plotting Data ---');
+    alert(`Plotting data for ${idsToPlot.length} rows.`);
+  }
 }
