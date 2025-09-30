@@ -17,105 +17,100 @@ export class AppModule {}
 
 // ================================
 // File: src/app/custom-multiselect.component.ts
+// (Single dropdown per filter, no textarea, typing filters options, click outside closes)
 // ================================
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Output, ViewChild } from '@angular/core';
 
 @Component({
   selector: 'app-custom-multiselect',
   template: `
-  <div class="multi">
-    <div class="chip-row" (click)="toggleOpen()">
-      <span class="chip" *ngFor="let s of displayValues">{{s}}</span>
+  <div class="multi" #root>
+    <div class="input-like" (click)="toggleOpen()" tabindex="0">
+      <span class="chip" *ngFor="let s of displayValues">{{s}} <button class="x" (click)="remove($event,s)">×</button></span>
       <span *ngIf="hiddenCount>0" class="chip">+{{hiddenCount}} more</span>
-      <input placeholder="Type or paste list and press Enter" (keydown.enter)="onPasteInput($event)" #textinput />
-      <button type="button" class="caret">▾</button>
+      <input type="text" [(ngModel)]="query" (input)="onQuery()" (keydown)="onKeydown($event)" placeholder="Type to filter/select" />
+      <button class="caret">▾</button>
     </div>
 
     <div class="dropdown" *ngIf="open">
-      <label class="textarea-label">Paste newline/comma separated values:</label>
-      <textarea [(ngModel)]="pasteText" rows="4"></textarea>
-      <div class="actions">
-        <button (click)="applyPaste()">Apply</button>
-        <button (click)="clearAll()">Clear</button>
-      </div>
-      <div class="list">
-        <label *ngFor="let opt of options; index as i">
-          <input type="checkbox" [(ngModel)]="selectedMap[opt]" (change)="onCheckboxChange()"> {{opt}}
+      <div class="options">
+        <label *ngFor="let opt of filteredOptions">
+          <input type="checkbox" [(ngModel)]="selectedMap[opt]" (change)="emitSelected()"/> {{opt}}
         </label>
+        <div *ngIf="filteredOptions.length===0" class="nores">No options</div>
       </div>
     </div>
-
   </div>
   `,
   styles: [`
+    :host{display:block}
     .multi { position: relative; font-family: Arial, Helvetica, sans-serif; }
-    .chip-row{ min-height:40px; border:1px solid #cfd8dc; padding:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; cursor:pointer; }
-    .chip{ background:#e0f2f1; padding:6px 8px; border-radius:16px; font-size:13px; }
-    .caret{ margin-left:auto; }
-    .dropdown{ position:absolute; z-index:20; left:0; right:0; background:#fff; border:1px solid #cfd8dc; padding:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
-    textarea{ width:100%; }
-    .list{ max-height:150px; overflow:auto; margin-top:8px; }
-    .actions{ margin-top:6px; display:flex; gap:8px; }
+    .input-like{ min-height:40px; border-bottom:1px solid #cfd8dc; padding:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .chip{ background:#e8f5e9; padding:6px 8px; border-radius:16px; font-size:13px; display:inline-flex; align-items:center; }
+    .chip .x{ margin-left:6px; border:none; background:transparent; cursor:pointer; }
+    input[type=text]{ border:none; outline:none; flex:1; min-width:80px; }
+    .dropdown{ position:absolute; z-index:20; left:0; right:0; background:#fff; border:1px solid #e0e0e0; padding:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); max-height:220px; overflow:auto; }
+    .options label{ display:block; padding:4px 6px; cursor:pointer }
+    .nores{ color:#999; padding:8px }
   `]
 })
-export class CustomMultiSelectComponent {
+export class CustomMultiSelectComponent implements OnInit{
   @Input() options: string[] = [];
   @Input() selected: string[] = [];
   @Output() selectedChange = new EventEmitter<string[]>();
 
+  @ViewChild('root') root!: ElementRef;
+
   open = false;
-  pasteText = '';
+  query = '';
+  filteredOptions: string[] = [];
   selectedMap: { [k:string]: boolean } = {};
 
   ngOnInit(){
     this.options = Array.from(new Set(this.options));
     for(const o of this.options){ this.selectedMap[o] = this.selected.includes(o); }
+    this.filteredOptions = this.options.slice();
   }
 
-  toggleOpen(){ this.open = !this.open; }
+  toggleOpen(){ this.open = !this.open; this.updateFilter(); }
 
-  get displayValues(){
-    const chosen = this.options.filter(o=>this.selectedMap[o]);
-    return chosen.slice(0,3);
+  onQuery(){ this.updateFilter(); }
+
+  updateFilter(){
+    const q = (this.query||'').toLowerCase().trim();
+    this.filteredOptions = this.options.filter(o => o.toLowerCase().includes(q));
   }
-
-  get hiddenCount(){
-    const total = this.options.filter(o=>this.selectedMap[o]).length;
-    return Math.max(0, total-3);
-  }
-
-  onPasteInput(e: any){
-    const val = e.target.value?.trim();
-    if(!val) return;
-    // allow enter to add a single item
-    const normalized = val.replace(/,/g,'\n');
-    const parts = normalized.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    for(const p of parts){ if(this.options.indexOf(p)===-1) this.options.push(p); this.selectedMap[p]=true; }
-    e.target.value='';
-    this.emitSelected();
-  }
-
-  applyPaste(){
-    const normalized = this.pasteText.replace(/,/g,'\n');
-    const parts = normalized.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-    for(const p of parts){ if(this.options.indexOf(p)===-1) this.options.push(p); this.selectedMap[p]=true; }
-    this.pasteText=''; this.emitSelected();
-  }
-
-  clearAll(){ this.selectedMap = {}; this.emitSelected(); }
-
-  onCheckboxChange(){ this.emitSelected(); }
 
   emitSelected(){
     const list = this.options.filter(o=>this.selectedMap[o]);
     this.selected = list;
     this.selectedChange.emit(list);
   }
+
+  remove(ev:Event, item:string){ ev.stopPropagation(); this.selectedMap[item]=false; this.emitSelected(); }
+
+  onKeydown(e:KeyboardEvent){
+    if(e.key==='Escape'){ this.open=false; }
+    if(e.key==='Enter'){ e.preventDefault(); }
+  }
+
+  get displayValues(){
+    const chosen = this.options.filter(o=>this.selectedMap[o]);
+    return chosen.slice(0,3);
+  }
+  get hiddenCount(){ const total = this.options.filter(o=>this.selectedMap[o]).length; return Math.max(0,total-3); }
+
+  @HostListener('document:click', ['$event'])
+  handleOutsideClick(event: Event){
+    if(!this.root) return;
+    if(!this.root.nativeElement.contains(event.target)) this.open=false;
+  }
 }
 
 
 // ================================
 // File: src/app/app.component.ts
+// Changes: single-row clean layout (no white boxes), table populates on Search, plot controls hidden until table data exists, search uses selections to filter demo data
 // ================================
 import { Component } from '@angular/core';
 
@@ -135,68 +130,67 @@ interface FilterInfo {
 })
 export class AppComponent {
   filters: FilterInfo[] = [
-    { key: 'basketTicker', label: 'Basket Ticker', options: ['BCRERETL','BASK-USD','ALPHA'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorCode', label: 'Factor Code', options: ['Equity','Macro','Credit','Macro-2'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorMacro', label: 'Factor Macro', options: ['EU','US','APAC','LatAm'], selected: [], matches: 0, universe: 174432 },
-    { key: 'basketRegion', label: 'Basket Region', options: ['Sentiment','Macro','Micro'], selected: [], matches: 0, universe: 174432 },
-    { key: 'factorGroup', label: 'Factor Group Name', options: ['Macro','Sector','Style'], selected: [], matches: 0, universe: 174432 }
+    { key: 'basketTicker', label: 'Basket Ticker', options: ['BCRERETL','BASK-USD','ALPHA','BRAVO'], selected: [], matches: 0, universe: 174432 },
+    { key: 'factorCode', label: 'Factor Code', options: ['Equity','Macro','Credit','Rate'], selected: [], matches: 0, universe: 174432 },
+    { key: 'factorMacro', label: 'Factor Macro', options: ['EU','US','APAC','LATAM'], selected: [], matches: 0, universe: 174432 },
+    { key: 'basketRegion', label: 'Basket Region', options: ['Sentiment','Macro','Micro','News'], selected: [], matches: 0, universe: 174432 },
+    { key: 'factorGroup', label: 'Factor Group Name', options: ['Macro','Sector','Style','Growth'], selected: [], matches: 0, universe: 174432 }
   ];
 
-  // measure chips
   measure: 'raw'|'std' = 'raw';
+
+  // table data will be populated on search
+  tableData: any[] = [];
 
   // plotting rows
   plotRangeFrom: number|null = null;
   plotRangeTo: number|null = null;
   maxRows = 50;
 
-  // show only two filter boxes initially (but per requirement we show 5 upfront - keep responsive)
-  showAllFilters = true; // user asked 5 upfront so true
-
-  // simulate backend counts on change
-  updateCountsForFilter(f: FilterInfo){
-    // crude simulation: matches = number of selected * random factor
-    const selCount = f.selected.length || 1;
-    f.matches = selCount * Math.floor(20 + Math.random()*200);
-    // universe slightly reduced
-    f.universe = 174432 - selCount * Math.floor(Math.random()*1000);
-  }
+  // demo dataset (flat list of items with tags to filter by)
+  demoDB = Array.from({length:200}).map((_,i)=>({
+    id:i+1,
+    name:`Item ${i+1}`,
+    basketTicker: ['BCRERETL','BASK-USD','ALPHA','BRAVO'][i%4],
+    factorCode: ['Equity','Macro','Credit','Rate'][i%4],
+    factorMacro: ['EU','US','APAC','LATAM'][i%4],
+    basketRegion: ['Sentiment','Macro','Micro','News'][i%4],
+    factorGroup: ['Macro','Sector','Style','Growth'][i%4],
+    value: (Math.random()*10).toFixed(2)
+  }));
 
   onFilterChange(idx:number, selected:string[]){
     this.filters[idx].selected = selected;
-    this.updateCountsForFilter(this.filters[idx]);
+    // update live counters crudely
+    const selCount = selected.length||1;
+    this.filters[idx].matches = selCount * Math.floor(10 + Math.random()*80);
+    this.filters[idx].universe = 174432 - selCount * Math.floor(Math.random()*1000);
   }
 
-  deleteFilter(idx:number){
-    // localized delete — remove selections
-    this.filters[idx].selected = [];
-    this.updateCountsForFilter(this.filters[idx]);
-  }
+  clearFilter(idx:number){ this.filters[idx].selected = []; this.onFilterChange(idx, []); }
 
-  infoFilter(idx:number){
-    alert(`${this.filters[idx].label} info:\nThis filter lets you choose values or paste a list. Selected values show as chips. Matches/Universe update live.`);
-  }
+  infoFilter(idx:number){ alert(`${this.filters[idx].label} — choose from the dropdown. Live matches update.`); }
 
-  toggleMeasure(m:'raw'|'std'){
-    this.measure = m;
-  }
+  toggleMeasure(m:'raw'|'std'){ this.measure = m; }
 
   search(){
-    // prioritize range if present and valid
-    if(this.plotRangeFrom!=null && this.plotRangeTo!=null){
-      const from = Number(this.plotRangeFrom);
-      const to = Number(this.plotRangeTo);
-      const rows = Math.max(0, to - from + 1);
-      if(rows>this.maxRows){ alert(`Range too big. Maximum ${this.maxRows} rows allowed.`); return; }
-      alert(`Searching with range ${from}..${to} (${rows} rows) and measure ${this.measure}`);
-      return;
-    }
+    // filter demoDB by selected filters (all selected values across filters are ANDed)
+    let results = this.demoDB.slice();
+    this.filters.forEach(f=>{
+      if(f.selected && f.selected.length>0){
+        results = results.filter(r=> f.selected.includes((r as any)[f.key]));
+      }
+    });
 
-    // otherwise collect checked items (simulate prioritization)
-    const checkedRows = this.filters.reduce((acc,f)=> acc + f.selected.length,0);
-    if(checkedRows>this.maxRows){ alert(`Too many rows selected across filters. Max ${this.maxRows}.`); return; }
-    alert(`Searching with ${checkedRows} selected items across filters. Measure: ${this.measure}`);
+    // enforce max rows
+    if(results.length>this.maxRows) results = results.slice(0,this.maxRows);
+    this.tableData = results;
+
+    // reset plot range when table populated
+    this.plotRangeFrom = null; this.plotRangeTo = null;
   }
+
+  isTablePopulated(){ return this.tableData && this.tableData.length>0; }
 }
 
 
@@ -205,42 +199,64 @@ export class AppComponent {
 // ================================
 
 ` + `
-<div class="container">
+<div class="shell">
   <h1>Factorlab Filters</h1>
 
-  <div class="filters-grid">
-    <div class="filter" *ngFor="let f of filters; index as i">
-      <div class="filter-header">
-        <strong>{{f.label}}</strong>
-        <div class="actions">
-          <button class="icon" (click)="infoFilter(i)" title="Info">i</button>
-          <button class="icon" (click)="deleteFilter(i)" title="Clear">⊗</button>
-        </div>
+  <!-- single-row look: filters inline, no white boxed cards -->
+  <div class="filters-inline">
+    <div class="filter-inline" *ngFor="let f of filters; index as i">
+      <div class="label-row">
+        <span class="label">{{f.label}}</span>
+        <span class="icons">
+          <button (click)="infoFilter(i)" title="Info">i</button>
+          <button (click)="clearFilter(i)" title="Clear">⊗</button>
+        </span>
       </div>
-
       <app-custom-multiselect [options]="f.options" [selected]="f.selected" (selectedChange)="onFilterChange(i,$event)"></app-custom-multiselect>
+      <div class="counters"><small>{{f.matches}} Matches | {{f.universe}} Universe</small></div>
+    </div>
 
-      <div class="live-counters">
-        <small>{{f.matches}} Matches | {{f.universe}} Universe</small>
+    <div class="actions-inline">
+      <div class="measures">
+        <button class="measure" [class.active]="measure==='raw'" (click)="toggleMeasure('raw')">raw</button>
+        <button class="measure" [class.active]="measure==='std'" (click)="toggleMeasure('std')">std</button>
       </div>
-    </div>
-  </div>
 
-  <div class="measure-row">
-    <div class="chips">
-      <button class="measure-chip" [class.active]="measure==='raw'" (click)="toggleMeasure('raw')">raw</button>
-      <button class="measure-chip" [class.active]="measure==='std'" (click)="toggleMeasure('std')">std</button>
-    </div>
-
-    <div class="plot-controls">
-      <label>Plot Rows: Range</label>
-      <input type="number" [(ngModel)]="plotRangeFrom" placeholder="from" min="1" />
-      <input type="number" [(ngModel)]="plotRangeTo" placeholder="to" min="1" />
       <button class="search" (click)="search()">Search</button>
     </div>
   </div>
 
-  <div class="footer-note">Max rows enforced: {{maxRows}}</div>
+  <!-- table appears after search -->
+  <div *ngIf="isTablePopulated()" class="results">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Basket</th><th>Factor Code</th><th>Macro</th><th>Region</th><th>Group</th><th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of tableData">
+          <td>{{row.id}}</td>
+          <td>{{row.name}}</td>
+          <td>{{row.basketTicker}}</td>
+          <td>{{row.factorCode}}</td>
+          <td>{{row.factorMacro}}</td>
+          <td>{{row.basketRegion}}</td>
+          <td>{{row.factorGroup}}</td>
+          <td>{{row.value}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- plot rows controls only visible when table populated -->
+    <div class="plot-controls">
+      <label>Plot Rows: Range</label>
+      <input type="number" [(ngModel)]="plotRangeFrom" placeholder="from" min="1" />
+      <input type="number" [(ngModel)]="plotRangeTo" placeholder="to" min="1" />
+      <div class="note">Max rows allowed: {{maxRows}}</div>
+    </div>
+  </div>
+
 </div>
 ` + `
 
@@ -248,19 +264,24 @@ export class AppComponent {
 // File: src/app/app.component.css
 // ================================
 
-.container{ font-family: Arial, Helvetica, sans-serif; padding:20px; }
-.filters-grid{ display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:12px; align-items:start; }
-.filter{ border:1px solid #e0e0e0; padding:10px; border-radius:6px; background:white; }
-.filter-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.actions .icon{ background:none; border:1px solid #ddd; border-radius:12px; width:28px; height:28px; line-height:24px; }
-.live-counters{ margin-top:6px; color:#607d8b; }
-.measure-row{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:12px; }
-.chips{ display:flex; gap:8px; }
-.measure-chip{ padding:8px 12px; border-radius:16px; border:1px solid #b0bec5; background:#f5f5f5; }
-.measure-chip.active{ background:#4caf50; color:white; border-color:#4caf50; }
-.plot-controls{ display:flex; gap:8px; align-items:center; }
-.search{ background:#1976d2; color:white; border:none; padding:8px 12px; border-radius:6px; }
-.footer-note{ margin-top:12px; color:#9e9e9e; }
+.shell{ font-family: Arial, Helvetica, sans-serif; padding:18px; }
+.filters-inline{ display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+.filter-inline{ min-width:200px; max-width:240px; }
+.label-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.label{ font-weight:600 }
+.icons button{ margin-left:6px; border:none; background:#eee; width:28px; height:28px; border-radius:6px; }
+.counters{ color:#607d8b; margin-top:6px }
+.actions-inline{ display:flex; align-items:center; gap:10px; margin-left:8px; }
+.measures{ display:flex; gap:6px }
+.measure{ padding:8px 10px; border-radius:16px; border:1px solid #bdbdbd; background:#fafafa }
+.measure.active{ background:#4caf50; color:white; border-color:#4caf50 }
+.search{ background:#1976d2; color:white; border:none; padding:8px 14px; border-radius:6px }
 
-/* small responsive tweaks */
-@media (max-width:700px){ .measure-row{ flex-direction:column; align-items:stretch; } }
+/* table */
+.results{ margin-top:18px }
+table{ width:100%; border-collapse:collapse }
+th,td{ padding:8px 6px; border-bottom:1px solid #eee; text-align:left }
+.plot-controls{ margin-top:12px; display:flex; gap:8px; align-items:center }
+.note{ color:#888 }
+
+@media(max-width:900px){ .filters-inline{ flex-direction:column } }
