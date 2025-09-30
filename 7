@@ -1,67 +1,373 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
-import { Overlay, OverlayRef, ConnectedPosition, OverlayPositionBuilder } from '@angular/cdk/overlay';
-import { TemplatePortal } from '@angular/cdk/portal';
+import { ChangeDetectionStrategy, Component, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms'; 
+
+// --- INTERFACES & CLASSES ---
+
+// Filter value structure used in options list
+interface FilterOption {
+  id: string;
+  name: string;
+}
+
+// Full filter definition structure
+interface FilterCriterion {
+  key: string; // Used to access table property
+  label: string;
+  options: FilterOption[];
+  selectedIds: string[];
+  matches: number;
+  universe: number;
+  open: boolean; // Replaces `open` from custom-multiselect.component
+  selectedMap: { [key: string]: boolean }; // Replaces `selectedMap` for faster lookups
+}
+
+// Measure chip structure
+interface MeasureChip {
+  id: 'raw' | 'std';
+  label: string;
+  active: boolean;
+}
+
+// Table row structure
+interface TableRow {
+  id: number;
+  basketTicker: string;
+  factorCode: string;
+  factorMacro: string;
+  basketRegion: string;
+  factorGroup: string;
+  value: string;
+}
+
+// Table sort state
+interface SortState {
+  column: keyof TableRow | null;
+  direction: 'asc' | 'desc';
+}
+
 
 @Component({
-  selector: 'app-dropdown-example',
-  templateUrl: './dropdown-example.component.html',
-  styleUrls: ['./dropdown-example.component.css']
-})
-export class DropdownExampleComponent {
-  @ViewChild('dropdownOrigin') dropdownOrigin!: ElementRef;
-  @ViewChild('dropdownPanel') dropdownPanel!: ElementRef;
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <!-- Main Container: Responsive padding and max width -->
+    <div class="p-4 sm:p-6 bg-gray-50 min-h-screen font-inter" (document:click)="handleOutsideClick($event)">
+      <div class="max-w-7xl mx-auto bg-white shadow-2xl rounded-xl p-4 sm:p-6">
 
-  private overlayRef!: OverlayRef;
-  isOpen = false;
+        <!-- Header and Global Actions -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 mb-6 border-b border-gray-200 space-y-4 md:space-y-0">
+          <div class="flex items-center">
+            <h1 class="text-xl sm:text-2xl font-semibold text-gray-800">Factorlab Filters</h1>
+            <!-- Global Info/Clear - Placeholder Icons -->
+            <button (click)="alert('Global Info')" class="ml-3 text-gray-400 hover:text-blue-600 transition-colors focus:outline-none" title="Filter System Information">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+            </button>
+            <button (click)="resetAllFilters()" class="ml-2 text-red-500 hover:text-red-700 transition-colors focus:outline-none" title="Clear All Filters">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a8 8 0 110 16 8 8 0 010-16zM5 10a1 1 0 001 1h8a1 1 0 100-2H6a1 1 0 00-1 1z" /></svg>
+            </button>
+          </div>
 
-  constructor(
-    private overlay: Overlay,
-    private overlayPositionBuilder: OverlayPositionBuilder
-  ) {}
+          <!-- Measure Chips and Search Button -->
+          <div class="flex items-center space-x-3 sm:space-x-4 w-full md:w-auto justify-end">
+            <div class="text-sm font-medium text-gray-600 whitespace-nowrap">Measure:</div>
+            <ng-container *ngFor="let m of measures()">
+              <button
+                (click)="toggleMeasure(m)"
+                [ngClass]="{'bg-blue-600 text-white shadow-md border-blue-600': m.active, 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600 border-gray-300': !m.active}"
+                class="px-3 py-1 text-sm rounded-full transition-all duration-200 whitespace-nowrap border">
+                {{ m.label }}
+              </button>
+            </ng-container>
+            <button (click)="search()" class="px-4 sm:px-6 py-2 bg-green-600 text-white font-medium rounded-lg shadow-lg hover:bg-green-700 transition-colors whitespace-nowrap">
+              Search
+            </button>
+          </div>
+        </div>
 
-  toggleDropdown() {
-    if (this.isOpen) {
-      this.overlayRef.dispose();
-      this.isOpen = false;
-      return;
+        <!-- Filter Row (Responsive Grid: 1 col on mobile, 2 on tablet, 5 on desktop) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <ng-container *ngFor="let filter of filters(); index as i">
+            <div class="relative" #filterRoot [attr.data-filter-id]="filter.key">
+              
+              <!-- Filter Label and Per-Filter Actions -->
+              <div class="flex items-center mb-1">
+                <label class="text-sm font-medium text-gray-700 mr-2">{{ filter.label }}</label>
+                <!-- Info Button -->
+                <button (click)="infoFilter(filter.key)" class="text-gray-400 hover:text-blue-600 transition-colors focus:outline-none" title="Info for {{ filter.label }}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                </button>
+                <!-- Delete Button (Clear Filter) -->
+                <button (click)="clearFilter(filter.key); $event.stopPropagation();" class="ml-1 text-red-400 hover:text-red-600 transition-colors focus:outline-none" title="Clear {{ filter.label }}">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                </button>
+              </div>
+
+              <!-- Custom Multiselect Input Display (Input-like area) -->
+              <div (click)="toggleOpen(filter.key); $event.stopPropagation();"
+                class="input-like cursor-pointer border-b border-gray-400 p-2 flex items-center min-h-[40px] text-sm bg-white hover:border-blue-500 transition-colors">
+                
+                <div *ngIf="filter.selectedIds.length === 0" class="text-gray-400">Type or select values...</div>
+                <div *ngIf="filter.selectedIds.length > 0" class="flex flex-wrap gap-1">
+                  <!-- Display selected chips concicely -->
+                  <ng-container *ngFor="let id of getDisplayValues(filter); index as j">
+                    <span class="chip px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium flex items-center whitespace-nowrap">
+                      {{ getOptionName(filter, id) }} 
+                      <button (click)="removeSelection($event, filter.key, id)" class="text-blue-700 ml-1 hover:text-red-500 transition-colors text-base leading-none p-0.5">×</button>
+                    </span>
+                  </ng-container>
+                  <!-- '+X more' chip -->
+                  <span *ngIf="getHiddenCount(filter) > 0"
+                        class="chip px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-xs font-medium cursor-pointer hover:bg-gray-300"
+                        title="{{ getFullSelectedList(filter) }}">
+                    +{{ getHiddenCount(filter) }} more
+                  </span>
+                </div>
+                
+                <!-- Search input integrated into the input-like area when open -->
+                <input *ngIf="filter.open"
+                       type="text" 
+                       (input)="updateQuery($event.target.value, filter.key)"
+                       (keydown.escape)="filter.open=false"
+                       [ngModel]="queryState()[filter.key]"
+                       class="text-gray-900 border-none outline-none flex-1 min-w-[80px] p-0 m-0 bg-transparent"
+                       placeholder="Type to filter/select">
+                
+                <span class="ml-auto text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                </span>
+              </div>
+
+              <!-- Dropdown Panel (The Custom Select) -->
+              <div *ngIf="filter.open"
+                   class="absolute dropdown z-20 mt-0 w-full rounded-b-md bg-white shadow-2xl border-x border-b border-gray-300 p-3 max-w-xs sm:max-w-sm lg:max-w-full">
+                
+                <!-- Checkbox List (Filtered by queryState) -->
+                <div class="max-h-48 overflow-y-auto space-y-1">
+                  <ng-container *ngFor="let option of getFilteredOptions(filter.key)">
+                    <label class="flex items-center p-1 hover:bg-blue-50 rounded cursor-pointer">
+                      <input type="checkbox" 
+                             [checked]="filter.selectedMap[option.id]"
+                             (change)="toggleSelection(filter.key, option.id)"
+                             class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                      <span class="ml-2 text-sm text-gray-700 w-full">{{ option.name }}</span>
+                    </label>
+                  </ng-container>
+
+                  <div *ngIf="getFilteredOptions(filter.key).length === 0" class="text-center text-sm text-gray-400 py-2">
+                    No matching options.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Feedback below Dropdown -->
+              <div class="mt-1 text-xs text-gray-500 flex justify-between">
+                <span>Matches: <span class="font-semibold text-blue-600">{{ filter.matches }}</span></span>
+                <span>Universe: <span class="font-semibold">{{ filter.universe }}</span></span>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+
+        <!-- Results Table -->
+        <div class="mt-10">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">Results ({{ filteredTableData().length }} rows)</h2>
+
+          <!-- Table Container with Scrollability -->
+          <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-md">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-100">
+                <tr>
+                  <!-- Checkbox Column -->
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                    <input type="checkbox" (change)="toggleAllPlotSelection($event)" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                  </th>
+                  <!-- Dynamic Headers -->
+                  <th *ngFor="let col of tableColumns"
+                      (click)="sortData(col.key)"
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors whitespace-nowrap">
+                    <div class="flex items-center">
+                      {{ col.label }}
+                      <span class="ml-1 text-gray-400">
+                        <ng-container *ngIf="sortState().column === col.key">
+                          <svg *ngIf="sortState().direction === 'asc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                          <svg *ngIf="sortState().direction === 'desc'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                        </ng-container>
+                        <svg *ngIf="sortState().column !== col.key" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15l5-5 5 5z"/></svg>
+                      </span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr *ngFor="let row of filteredTableData(); even as isEven" [class.bg-gray-50]="isEven" class="hover:bg-blue-50 transition-colors">
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <input type="checkbox" [checked]="plotSelections().includes(row.id)" (change)="togglePlotSelection(row.id)" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ getFilterName('basketTicker', row.basketTicker) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorCode', row.factorCode) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorMacro', row.factorMacro) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('basketRegion', row.basketRegion) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ getFilterName('factorGroup', row.factorGroup) }}</td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ row.value }}</td>
+                </tr>
+                <tr *ngIf="filteredTableData().length === 0">
+                    <td [attr.colspan]="tableColumns.length + 2" class="text-center py-4 text-gray-500">No results found matching the current criteria.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Plotting Controls -->
+          <div class="flex justify-end items-center mt-4 space-x-3">
+            <div class="text-sm font-medium text-gray-600 whitespace-nowrap">Plot Rows:</div>
+            <div class="flex items-center space-x-1">
+              <input type="number" [(ngModel)]="plotRangeFrom" placeholder="Start" class="w-20 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+              <span class="text-gray-500">-</span>
+              <input type="number" [(ngModel)]="plotRangeTo" placeholder="End" class="w-20 p-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <button (click)="plotData()" class="px-6 py-2 bg-green-600 text-white font-medium rounded-lg shadow-lg hover:bg-green-700 transition-colors">
+              Plot Selected
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    /* Custom input-like styling for the filter box (replaces .input-like) */
+    .input-like {
+        border-bottom: 2px solid #cfd8dc;
+        padding: 6px;
+        transition: border-color 0.2s ease;
     }
+    .input-like:focus-within {
+        border-color: #3b82f6; /* Tailwind blue-500 */
+    }
+    .input-like input {
+        padding: 0;
+        margin: 0;
+    }
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class App {
+  // State for search term per filter
+  queryState = signal<{ [key: string]: string }>({});
 
-    const positions: ConnectedPosition[] = [
-      {
-        originX: 'start', originY: 'bottom',
-        overlayX: 'start', overlayY: 'top'
-      }
-    ];
+  // --- Data Initialization ---
+  initialFilterCriteria: FilterCriterion[] = [
+    { key: 'basketTicker', label: 'Basket Ticker', 
+      options: [{ id: 'BCRERETL', name: 'BCRERETL' }, { id: 'BASK-USD', name: 'BASK-USD' }, { id: 'ALPHA', name: 'ALPHA' }, { id: 'BRAVO', name: 'BRAVO' }], 
+      selectedIds: ['BCRERETL'], matches: 237, universe: 174432, open: false, selectedMap: { 'BCRERETL': true } },
+    { key: 'factorCode', label: 'Factor Code', 
+      options: [{ id: 'Equity', name: 'Equity' }, { id: 'Macro', name: 'Macro' }, { id: 'Credit', name: 'Credit' }, { id: 'Rate', name: 'Rate' }], 
+      selectedIds: ['Equity', 'Macro'], matches: 150, universe: 174432, open: false, selectedMap: { 'Equity': true, 'Macro': true } },
+    { key: 'factorMacro', label: 'Factor Macro', 
+      options: [{ id: 'EU', name: 'EU' }, { id: 'US', name: 'US' }, { id: 'APAC', name: 'APAC' }, { id: 'LATAM', name: 'LATAM' }], 
+      selectedIds: ['EU'], matches: 85, universe: 174432, open: false, selectedMap: { 'EU': true } },
+    { key: 'basketRegion', label: 'Basket Region', 
+      options: [{ id: 'Sentiment', name: 'Sentiment' }, { id: 'Macro', name: 'Macro' }, { id: 'Micro', name: 'Micro' }, { id: 'News', name: 'News' }], 
+      selectedIds: [], matches: 0, universe: 174432, open: false, selectedMap: {} },
+    { key: 'factorGroup', label: 'Factor Group Name', 
+      options: [{ id: 'Macro', name: 'Macro' }, { id: 'Sector', name: 'Sector' }, { id: 'Style', name: 'Style' }, { id: 'Growth', name: 'Growth' }], 
+      selectedIds: [], matches: 0, universe: 174432, open: false, selectedMap: {} }
+  ];
 
-    this.overlayRef = this.overlay.create({
-      positionStrategy: this.overlayPositionBuilder
-        .flexibleConnectedTo(this.dropdownOrigin)
-        .withPositions(positions),
-      scrollStrategy: this.overlay.scrollStrategies.reposition()
-    });
+  initialDemoDB: TableRow[] = Array.from({ length: 15 }).map((_, i) => ({
+    id: i + 1,
+    basketTicker: ['BCRERETL', 'BASK-USD'][i % 2],
+    factorCode: ['Equity', 'Macro', 'Credit'][i % 3],
+    factorMacro: ['EU', 'US'][i % 2],
+    basketRegion: ['Sentiment', 'Macro'][i % 2],
+    factorGroup: ['Macro', 'Sector'][i % 2],
+    value: (Math.random() * 10).toFixed(2)
+  }));
 
-    this.overlayRef.attach(new TemplatePortal(this.dropdownPanel, null!));
-    this.isOpen = true;
+  // --- Signals ---
+  filters = signal<FilterCriterion[]>(this.initialFilterCriteria);
+  measures = signal<MeasureChip[]>([
+    { id: 'raw', label: 'raw', active: true },
+    { id: 'std', label: 'std', active: false },
+  ]);
+  tableData = signal<TableRow[]>([]); // Starts empty, populates on search
+  plotSelections = signal<number[]>([]);
+  sortState = signal<SortState>({ column: null, direction: 'asc' });
+
+  // Plotting range inputs
+  plotRangeFrom: number | null = null;
+  plotRangeTo: number | null = null;
+
+  // --- Computed Values ---
+  filteredTableData = computed(() => {
+    let data = [...this.tableData()];
+    
+    // 1. Sorting
+    const sort = this.sortState();
+    if (sort.column) {
+      data.sort((a, b) => {
+        const valA = a[sort.column] as string;
+        const valB = b[sort.column] as string;
+        let comparison = 0;
+        if (valA > valB) comparison = 1;
+        else if (valA < valB) comparison = -1;
+        return sort.direction === 'desc' ? comparison * -1 : comparison;
+      });
+    }
+    return data;
+  });
+
+  tableColumns = [
+    { key: 'basketTicker', label: 'Basket Ticker' },
+    { key: 'factorCode', label: 'Factor Code' },
+    { key: 'factorMacro', label: 'Factor Macro' },
+    { key: 'basketRegion', label: 'Basket Region' },
+    { key: 'factorGroup', label: 'Factor Group Name' },
+    { key: 'value', label: 'Value' },
+  ];
+
+  // --- Filter Helper Methods (Replacing CustomMultiSelect Logic) ---
+
+  getFilter(key: string): FilterCriterion | undefined {
+    return this.filters().find(f => f.key === key);
   }
-}
-<div class="dropdown-container">
-  <button #dropdownOrigin (click)="toggleDropdown()">Open Dropdown</button>
-</div>
 
-<ng-template #dropdownPanel>
-  <div class="dropdown-panel">
-    <div>Option 1</div>
-    <div>Option 2</div>
-    <div>Option 3</div>
-  </div>
-</ng-template>
-.dropdown-container {
-  width: 200px;
-}
+  getOptionName(filter: FilterCriterion, id: string): string {
+    return filter.options.find(o => o.id === id)?.name || id;
+  }
 
-.dropdown-panel {
-  background: white;
-  border: 1px solid #ccc;
-  width: 100%; /* inherit parent width */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
+  getFullSelectedList(filter: FilterCriterion): string {
+    return filter.selectedIds.map(id => this.getOptionName(filter, id)).join(', ');
+  }
+
+  getDisplayValues(filter: FilterCriterion): string[] {
+    return filter.selectedIds.slice(0, 3);
+  }
+
+  getHiddenCount(filter: FilterCriterion): number {
+    return Math.max(0, filter.selectedIds.length - 3);
+  }
+
+  getFilteredOptions(key: string): FilterOption[] {
+    const filter = this.getFilter(key);
+    if (!filter) return [];
+
+    const term = (this.queryState()[key] || '').toLowerCase().trim();
+    if (!term) return filter.options;
+
+    return filter.options.filter(option =>
+      option.name.toLowerCase().includes(term) ||
+      option.id.toLowerCase().includes(term)
+    );
+  }
+
+  updateQuery(query: string, key: string) {
+    this.queryState.update(state => ({ ...state, [key]: query }));
+  }
+
+  // --- Filter Action Handlers ---
+
+  toggleOpen(key: string) {
+    this.filters.update(c => c.map(f => {
+      // Toggle the clicked filter, close all others
