@@ -1,40 +1,31 @@
-.custom-select {
-  position: relative;
-  width: 200px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
-  background: #fff;
+ngAfterViewInit() {
+  let resizeTimeout: any;
+  let lastWidth = 0;
+  let lastHeight = 0;
+
+  this.resizeObserver = new ResizeObserver(entries => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const { width, height } = entries[0].contentRect;
+
+      if (Math.abs(width - lastWidth) > 1 || Math.abs(height - lastHeight) > 1) {
+        lastWidth = width;
+        lastHeight = height;
+        this.syncOtherElement(width, height);
+      }
+    }, 100);
+  });
+
+  setTimeout(() => {
+    this.resizeObserver.observe(this.cdkElement.nativeElement);
+  }, 100);
 }
 
-.selected {
-  padding: 8px;
+syncOtherElement(width: number, height: number) {
+  this.otherElement.nativeElement.style.width = `${width}px`;
+  this.otherElement.nativeElement.style.height = `${height}px`;
 }
 
-.dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #ccc;
-  max-height: 150px;
-  overflow-y: auto;
-  z-index: 100;
-}
-
-.dropdown-search {
-  width: 90%;
-  padding: 6px;
-  margin: 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.option {
-  padding: 8px;
-}
-
-.option:hover {
-  background: #f0f0f0;
+ngOnDestroy() {
+  this.resizeObserver.disconnect();
 }
