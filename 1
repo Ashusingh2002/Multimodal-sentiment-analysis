@@ -1,189 +1,235 @@
-Perfect — that’s a **tricky but solvable** situation 👏
+  Since your app is workflow-based and already has **Frontend → Backend → Worker** architecture, I'd create **different dashboards for each service** instead of one giant dashboard. Each service has a different purpose, so the metrics you care about are different.
 
-So your dropdown is inside a **CDK Drag element** (from Angular Material), and you want it to:
+## 1. Backend Dashboard (API Service)
 
-* Appear **above everything else**,
-* Not make the drag container scrollable,
-* **Move dynamically with its parent** (as the dragged element moves or resizes),
-* But **not get clipped** by parent or scrollable containers.
+The backend mainly receives requests, validates them, creates workflows, and talks to the worker.
 
-Let’s make it work step-by-step.
+### Traffic
+
+* Requests/sec (RPS)
+* Total requests
+* Active requests
+* Request size
+* Response size
+
+### Latency
+
+* P50 latency
+* P95 latency
+* P99 latency
+* Slowest endpoints
+* Endpoint-wise latency
+
+### Errors
+
+* Error rate (%)
+* 4xx count
+* 5xx count
+* Exception count
+* Top exceptions
+
+### Resource Usage
+
+* CPU %
+* Memory
+* GC collections (if .NET/Java)
+* Thread count
+* File descriptors
+
+### Kubernetes
+
+* Pod count
+* Pod restarts
+* OOMKills
+* CPU throttling
+* Network I/O
+
+### Database (if backend accesses DB)
+
+* Query latency
+* Connection pool usage
+* Failed queries
+
+### OpenTelemetry
+
+* Trace duration
+* Top slow spans
+* Requests by endpoint
+* Trace waterfall
 
 ---
 
-## 🧩 Problem Recap
+# 2. Worker Dashboard
 
-When using CDK Drag:
+This is the most important dashboard because actual execution happens here.
 
-* Your draggable container often has `overflow: hidden` or transforms.
-* That causes absolutely positioned elements to get **clipped** or **stuck inside** the parent.
+### Queue
 
-If you use `position: fixed`, it’ll float — but not move with the drag.
+* Queue length
+* Jobs waiting
+* Jobs processing
+* Jobs completed/sec
+* Jobs failed/sec
+* Retry count
 
-So we need a hybrid approach:
-**Render the dropdown outside (in document.body), but position it dynamically based on the parent’s location.**
+### Workflow Metrics
+
+* Workflow execution time
+* Step execution time
+* Long-running workflows
+* Success %
+* Failure %
+* Timeout count
+
+### Resource Usage
+
+* CPU
+* Memory
+* Network
+* Disk I/O
+
+### Errors
+
+* Exceptions
+* Failed jobs
+* Retry rate
+* Dead-letter queue size (if applicable)
+
+### OpenTelemetry
+
+* Workflow traces
+* Span duration
+* Longest-running spans
+* External API calls
+* Database spans
+
+### Kubernetes
+
+* Pod restarts
+* Replica count
+* HPA status
+* Pending pods
+* Node utilization
 
 ---
 
-## ✅ Angular Solution: **Dynamic Portal with Manual Position Sync**
+# 3. Workflow Business Dashboard
 
-### 1️⃣ Create a Dropdown Component
+This is often the dashboard product owners like.
 
-`dropdown.component.ts`
+Show:
 
-```ts
-import { Component, ElementRef, Input, OnDestroy, OnInit, Renderer2 } from '@angular/core';
+* Total workflows today
+* Running workflows
+* Completed workflows
+* Failed workflows
+* Average workflow duration
+* Workflows per tenant/user
+* Top failing workflow types
+* Workflow success rate
 
-@Component({
-  selector: 'app-dropdown',
-  template: `
-    <div class="dropdown-content" [ngStyle]="positionStyle">
-      <ng-content></ng-content>
-    </div>
-  `,
-  styles: [`
-    .dropdown-content {
-      position: absolute;
-      z-index: 9999;
-      background: white;
-      border: 1px solid #ccc;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-  `]
-})
-export class DropdownComponent implements OnInit, OnDestroy {
-  @Input() parentRef!: HTMLElement;
-  @Input() visible = false;
+Example cards:
 
-  positionStyle: any = {};
-  private listeners: (() => void)[] = [];
-
-  constructor(private renderer: Renderer2, private el: ElementRef) {}
-
-  ngOnInit() {
-    if (!this.parentRef) return;
-    this.moveToBody();
-    this.updatePosition();
-
-    // Update position on scroll/resize
-    const update = this.updatePosition.bind(this);
-    this.listeners.push(
-      this.renderer.listen('window', 'scroll', update),
-      this.renderer.listen('window', 'resize', update),
-      this.renderer.listen(this.parentRef, 'mousemove', update)
-    );
-  }
-
-  ngOnDestroy() {
-    this.listeners.forEach(off => off());
-  }
-
-  private moveToBody() {
-    // Move dropdown container outside of any clipping parent
-    const nativeElement = this.el.nativeElement.querySelector('.dropdown-content');
-    document.body.appendChild(nativeElement);
-  }
-
-  updatePosition() {
-    if (!this.parentRef) return;
-    const rect = this.parentRef.getBoundingClientRect();
-    this.positionStyle = {
-      top: `${rect.bottom + window.scrollY}px`,
-      left: `${rect.left + window.scrollX}px`,
-      width: `${rect.width}px`
-    };
-  }
-}
+```
+Running Workflows      124
+Completed Today      13,542
+Failed Today            52
+Avg Duration         18 sec
+Success Rate        99.6%
 ```
 
 ---
 
-### 2️⃣ Use It Inside Your Draggable Component
+# 4. Kubernetes Cluster Dashboard
 
-`draggable-container.component.html`
+This is infrastructure-focused.
 
-```html
-<div cdkDrag class="draggable-box">
-  <button #dropdownBtn (click)="toggleDropdown()">Toggle Dropdown</button>
+* Node CPU
+* Node Memory
+* Pod CPU
+* Pod Memory
+* Pod restarts
+* Pod health
+* Deployment status
+* Replica availability
+* Network traffic
+* PVC usage
 
-  <app-dropdown
-    *ngIf="showDropdown"
-    [parentRef]="dropdownBtn"
-    [visible]="showDropdown">
-    <div style="padding: 10px">
-      Dropdown content goes here!
-    </div>
-  </app-dropdown>
-</div>
+---
+
+# 5. End-to-End Dashboard
+
+Since you're using OpenTelemetry, I'd also have one dashboard showing the full request journey:
+
+```
+Frontend
+     │
+     ▼
+Backend
+     │
+     ▼
+Queue
+     │
+     ▼
+Worker
+     │
+     ▼
+Database
 ```
 
----
+Track:
 
-`draggable-container.component.ts`
+* Total request duration
+* Backend processing time
+* Queue wait time
+* Worker execution time
+* DB time
+* External API time
+* Error location (where failures occur)
 
-```ts
-import { Component, ViewChild, ElementRef } from '@angular/core';
-
-@Component({
-  selector: 'app-draggable-container',
-  templateUrl: './draggable-container.component.html',
-  styleUrls: ['./draggable-container.component.css']
-})
-export class DraggableContainerComponent {
-  @ViewChild('dropdownBtn', { static: false }) dropdownBtn!: ElementRef;
-  showDropdown = false;
-
-  toggleDropdown() {
-    this.showDropdown = !this.showDropdown;
-  }
-}
-```
+This quickly tells you whether latency is in the backend, queue, worker, or database.
 
 ---
 
-### 3️⃣ Styling Example
+## Recommended layout
 
-`draggable-container.component.css`
+### Backend Dashboard
 
-```css
-.draggable-box {
-  width: 200px;
-  padding: 10px;
-  background: #fafafa;
-  border: 1px solid #ccc;
-  cursor: grab;
-  position: relative;
-}
-```
+* RPS
+* Error %
+* P95 latency
+* CPU
+* Memory
+* Top endpoints
+* Exceptions
+* Pod health
 
----
+### Worker Dashboard
 
-### 🧠 What This Does
+* Active jobs
+* Queue length
+* Success/failure rate
+* Workflow duration
+* CPU
+* Memory
+* Retries
+* Slow workflows
 
-✅ Moves the dropdown DOM node directly into `document.body` (like a portal).
-✅ Calculates exact position of the parent each frame (so it “sticks” to the button).
-✅ Works perfectly **inside CDK drag**, even when the element moves.
-✅ No clipping from scrollable parents.
-✅ No fixed positioning issues — dropdown follows parent correctly.
+### Kubernetes Dashboard
 
----
+* Cluster health
+* Node CPU/Memory
+* Pod health
+* Restarts
+* Network
+* Deployments
 
-### ⚡ Bonus Tip (for smooth dragging)
+### Trace Dashboard
 
-If your dropdown flickers when dragging fast:
+* End-to-end request latency
+* Span breakdown
+* Slow traces
+* Error traces
+* Service dependency graph
 
-* Add a CDK drag listener and call `updatePosition()` on each `cdkDragMoved` event:
-
-  ```html
-  <div cdkDrag (cdkDragMoved)="dropdown?.updatePosition()">
-  ```
-
-  ```ts
-  @ViewChild(DropdownComponent) dropdown?: DropdownComponent;
-  ```
-
-That ensures the dropdown tracks perfectly as you drag.
-
----
-
-Would you like me to show a **CDK overlay-based** version too? (Cleaner and more Angular-native, no manual positioning.)
+This separation makes it much easier to diagnose issues: API problems show up on the backend dashboard, execution bottlenecks on the worker dashboard, infrastructure issues on the Kubernetes dashboard, and overall performance on the trace dashboard.
